@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { logout } from '@/app/login/actions'
 
 const links = [
   {
@@ -122,6 +123,14 @@ export default function Nav() {
           )
         })}
       </div>
+
+      <div className="flex-1" />
+
+      <form action={logout}>
+        <button type="submit" className="text-sm font-medium text-zinc-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer">
+          Sair
+        </button>
+      </form>
     </nav>
   )
 }
