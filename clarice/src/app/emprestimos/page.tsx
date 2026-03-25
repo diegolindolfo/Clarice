@@ -30,11 +30,18 @@ const statusStyle: Record<string, string> = {
 export default function EmprestimosPage() {
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [busca, setBusca] = useState('')
+  const [buscaDebounced, setBuscaDebounced] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [carregando, setCarregando] = useState(true)
 
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
   const [modalRenovacao, setModalRenovacao] = useState<Emprestimo | null>(null)
+
+  // Debounce da busca (350ms)
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaDebounced(busca), 350)
+    return () => clearTimeout(t)
+  }, [busca])
 
   async function carregar() {
     setCarregando(true)
@@ -44,16 +51,17 @@ export default function EmprestimosPage() {
       .order('data_saida', { ascending: false })
 
     if (filtroStatus) query = query.eq('status', filtroStatus)
-    if (busca) query = query.or(`aluno_nome.ilike.%${busca}%,titulo.ilike.%${busca}%`)
+    if (buscaDebounced) query = query.or(`aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`)
 
     const { data } = await query
     setEmprestimos(data ?? [])
     setCarregando(false)
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     carregar()
-  }, [busca, filtroStatus])
+  }, [buscaDebounced, filtroStatus])
 
   const atrasados = emprestimos.filter((e) => e.em_atraso).length
   const ativos = emprestimos.filter((e) => e.status === 'EMPRESTADO').length

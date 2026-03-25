@@ -111,12 +111,6 @@ export default function AcervoPage() {
             {carregando ? '...' : `${total} título${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <button
-          onClick={() => router.push('/acervo/novo')}
-          className="border text-sm px-4 py-2 rounded-xl hover:bg-gray-50"
-        >
-          + Novo título
-        </button>
       </div>
 
       <div className="flex gap-2 mb-3 flex-wrap">
