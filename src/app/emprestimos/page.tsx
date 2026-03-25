@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import ModalDevolucao from '@/components/ModalDevolucao'
@@ -20,11 +20,21 @@ type Emprestimo = {
   em_atraso: boolean
 }
 
-const statusStyle: Record<string, string> = {
-  EMPRESTADO: 'bg-blue-50 text-blue-800',
-  RENOVADO: 'bg-purple-50 text-purple-800',
-  DEVOLVIDO: 'bg-green-50 text-green-800',
-  ATRASADO: 'bg-red-50 text-red-800',
+function SkeletonRows() {
+  return (
+    <>
+      {[...Array(6)].map((_, i) => (
+        <tr key={i}>
+          <td className="px-4 py-4"><div className="skeleton h-4 w-32 mb-2" /><div className="skeleton h-3 w-20" /></td>
+          <td className="px-4 py-4"><div className="skeleton h-4 w-36 mb-2" /><div className="skeleton h-3 w-24" /></td>
+          <td className="px-4 py-4"><div className="skeleton h-4 w-20" /></td>
+          <td className="px-4 py-4"><div className="skeleton h-4 w-20" /></td>
+          <td className="px-4 py-4"><div className="skeleton h-5 w-20 rounded-full" /></td>
+          <td className="px-4 py-4"><div className="skeleton h-7 w-16 rounded-lg" /></td>
+        </tr>
+      ))}
+    </>
+  )
 }
 
 export default function EmprestimosPage() {
@@ -37,13 +47,12 @@ export default function EmprestimosPage() {
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
   const [modalRenovacao, setModalRenovacao] = useState<Emprestimo | null>(null)
 
-  // Debounce da busca (350ms)
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 350)
     return () => clearTimeout(t)
   }, [busca])
 
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setCarregando(true)
     let query = supabase
       .from('vw_painel_aluno')
@@ -56,58 +65,65 @@ export default function EmprestimosPage() {
     const { data } = await query
     setEmprestimos(data ?? [])
     setCarregando(false)
-  }
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    carregar()
   }, [buscaDebounced, filtroStatus])
 
-  const atrasados = emprestimos.filter((e) => e.em_atraso).length
-  const ativos = emprestimos.filter((e) => e.status === 'EMPRESTADO').length
-  const renovados = emprestimos.filter((e) => e.status === 'RENOVADO').length
+  useEffect(() => {
+    carregar()
+  }, [carregar])
+
+  const counts = useMemo(() => ({
+    atrasados: emprestimos.filter((e) => e.em_atraso).length,
+    ativos: emprestimos.filter((e) => e.status === 'EMPRESTADO').length,
+    renovados: emprestimos.filter((e) => e.status === 'RENOVADO').length,
+  }), [emprestimos])
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 animate-fade-in">
         <div>
-          <h1 className="text-xl font-medium">Empréstimos</h1>
-          <p className="text-sm text-gray-500">Biblioteca Escolar Clarice</p>
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>Empréstimos</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Biblioteca Escolar Clarice</p>
         </div>
-        <Link
-          href="/emprestimos/novo"
-          className="border text-sm px-4 py-2 rounded-lg hover:bg-gray-50"
-        >
+        <Link href="/emprestimos/novo" className="btn-primary" style={{ textDecoration: 'none' }}>
           + Novo empréstimo
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-4 mb-6 animate-slide-up delay-1">
         {[
-          { label: 'Ativos', valor: ativos, cor: '' },
-          { label: 'Renovados', valor: renovados, cor: '' },
-          { label: 'Atrasados', valor: atrasados, cor: 'bg-red-50' },
+          { label: 'Ativos', valor: counts.ativos, gradient: 'var(--gradient-blue)' },
+          { label: 'Renovados', valor: counts.renovados, gradient: 'var(--gradient-purple)' },
+          { label: 'Atrasados', valor: counts.atrasados, gradient: 'var(--gradient-rose)' },
+          { label: 'Total carregado', valor: emprestimos.length, gradient: 'var(--bg-card)' },
         ].map((c) => (
-          <div key={c.label} className={`rounded-lg p-4 ${c.cor || 'bg-gray-50'}`}>
-            <p className="text-xs text-gray-500 mb-1">{c.label}</p>
-            <p className={`text-2xl font-medium ${c.cor ? 'text-red-700' : ''}`}>{c.valor}</p>
+          <div
+            key={c.label}
+            className="metric-card"
+            style={{ background: c.gradient }}
+          >
+            <p className="text-xs text-white/70 mb-1">{c.label}</p>
+            <p className="text-2xl font-bold text-white font-mono">{carregando ? '–' : c.valor}</p>
           </div>
         ))}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Total carregado</p>
-          <p className="text-2xl font-medium">{emprestimos.length}</p>
-        </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <input
-          placeholder="Buscar aluno ou livro..."
-          className="flex-1 border rounded-lg px-3 py-2 text-sm"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="flex gap-3 mb-5 animate-slide-up delay-2">
+        <div className="flex-1 relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            placeholder="Buscar aluno ou livro..."
+            className="dark-input w-full pl-10"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
         <select
-          className="border rounded-lg px-3 py-2 text-sm"
+          className="dark-select"
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value)}
         >
@@ -119,87 +135,79 @@ export default function EmprestimosPage() {
         </select>
       </div>
 
-      <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+      {/* Table */}
+      <div className="glass-card overflow-hidden animate-slide-up delay-3">
+        <table className="dark-table">
+          <thead>
             <tr>
               {['Aluno', 'Livro', 'Saída', 'Prazo', 'Status', 'Ação'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 font-medium">
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {carregando ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
-                  Carregando...
-                </td>
-              </tr>
+              <SkeletonRows />
             ) : emprestimos.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
+                <td colSpan={6} className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
                   Nenhum empréstimo encontrado
                 </td>
               </tr>
             ) : (
               emprestimos.map((e) => {
-                // Adjust timezone so displayed date matches the ISO date logically 
                 const dataSaida = new Date(e.data_saida)
                 const prazoFinal = new Date(e.prazo_final)
                 return (
-                  <tr key={e.emprestimo_id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{e.aluno_nome}</p>
-                      <p className="text-xs text-gray-400">
-                        {e.turma} · {e.matricula}
-                      </p>
+                  <tr key={e.emprestimo_id} className="cv-auto">
+                    <td>
+                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{e.aluno_nome}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.turma} · {e.matricula}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <p>{e.titulo}</p>
-                      <p className="text-xs text-gray-400">{e.autor}</p>
+                    <td>
+                      <p style={{ color: 'var(--text-primary)' }}>{e.titulo}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.autor}</p>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {new Date(dataSaida.getTime() + dataSaida.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')}
                     </td>
-                    <td className={`px-4 py-3 ${e.em_atraso ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                    <td style={{ color: e.em_atraso ? 'var(--accent-rose)' : 'var(--text-secondary)', fontWeight: e.em_atraso ? 500 : 400 }}>
                       {new Date(prazoFinal.getTime() + prazoFinal.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusStyle[e.status]}`}>
+                    <td>
+                      <span className={`badge ${
+                        e.status === 'EMPRESTADO' ? 'badge-blue' :
+                        e.status === 'RENOVADO' ? 'badge-purple' :
+                        e.status === 'DEVOLVIDO' ? 'badge-green' : 'badge-red'
+                      }`}>
                         {e.status.charAt(0) + e.status.slice(1).toLowerCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       {e.status === 'EMPRESTADO' && (
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => setModalDevolucao(e)}
-                            className="text-xs border rounded px-2 py-1 hover:bg-gray-50"
-                          >
+                          <button onClick={() => setModalDevolucao(e)} className="btn-ghost text-xs py-1.5 px-3">
                             Devolver
                           </button>
-                          <button
-                            onClick={() => setModalRenovacao(e)}
-                            className="text-xs border rounded px-2 py-1 hover:bg-gray-50"
-                          >
+                          <button onClick={() => setModalRenovacao(e)} className="btn-ghost text-xs py-1.5 px-3">
                             Renovar
                           </button>
                         </div>
                       )}
                       {e.status === 'RENOVADO' && (
-                        <button
-                          onClick={() => setModalDevolucao(e)}
-                          className="text-xs border rounded px-2 py-1 hover:bg-gray-50"
-                        >
+                        <button onClick={() => setModalDevolucao(e)} className="btn-ghost text-xs py-1.5 px-3">
                           Devolver
                         </button>
                       )}
                       {e.status === 'ATRASADO' && (
                         <button
                           onClick={() => setModalDevolucao(e)}
-                          className="text-xs border border-red-200 text-red-700 rounded px-2 py-1 hover:bg-red-50"
+                          className="text-xs py-1.5 px-3 rounded-lg font-medium transition-all"
+                          style={{
+                            background: 'var(--accent-rose-soft)',
+                            color: 'var(--accent-rose)',
+                            border: '1px solid rgba(244, 63, 94, 0.2)',
+                          }}
                         >
                           Devolver
                         </button>
@@ -225,10 +233,7 @@ export default function EmprestimosPage() {
             em_atraso: modalDevolucao.em_atraso,
           }}
           onFechar={() => setModalDevolucao(null)}
-          onConfirmar={() => {
-            setModalDevolucao(null)
-            carregar()
-          }}
+          onConfirmar={() => { setModalDevolucao(null); carregar() }}
         />
       )}
 
@@ -243,10 +248,7 @@ export default function EmprestimosPage() {
             renovado_em: modalRenovacao.renovado_em,
           }}
           onFechar={() => setModalRenovacao(null)}
-          onConfirmar={() => {
-            setModalRenovacao(null)
-            carregar()
-          }}
+          onConfirmar={() => { setModalRenovacao(null); carregar() }}
         />
       )}
     </div>

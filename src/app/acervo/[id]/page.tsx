@@ -49,33 +49,52 @@ export default function DetalheAcervoPage() {
 
   if (carregando)
     return (
-      <div className="max-w-3xl mx-auto p-6 text-sm text-gray-400 text-center py-16">
-        Carregando...
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="skeleton h-4 w-16 mb-8 rounded" />
+        <div className="flex gap-5 mb-6">
+          <div className="skeleton w-20 h-28 rounded-xl flex-shrink-0" />
+          <div className="flex-1">
+            <div className="skeleton h-6 w-64 mb-2" />
+            <div className="skeleton h-4 w-40 mb-4" />
+            <div className="flex gap-2">
+              <div className="skeleton h-6 w-20 rounded-full" />
+              <div className="skeleton h-6 w-24 rounded-full" />
+            </div>
+          </div>
+        </div>
       </div>
     )
 
   if (!livro)
     return (
-      <div className="max-w-3xl mx-auto p-6 text-sm text-gray-500 text-center py-16">
-        Livro não encontrado.
+      <div className="max-w-3xl mx-auto p-6 text-center py-20" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-3xl mb-3">📚</p>
+        <p className="text-sm">Livro não encontrado.</p>
       </div>
     )
 
   const disponiveis = exemplares.filter((e) => e.disponivel).length
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6 animate-fade-in">
       <button
         onClick={() => router.back()}
-        className="text-sm text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-1"
+        className="text-sm flex items-center gap-1 mb-6 transition-colors"
+        style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
       >
         ← Acervo
       </button>
 
-      <div className="flex gap-5 mb-6">
+      {/* Book Header */}
+      <div className="flex gap-5 mb-6 animate-slide-up delay-1">
         <div
           className="w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
-          style={{ background: livro.tipo === 'literatura' ? '#EEEDFE' : '#F1EFE8' }}
+          style={{
+            background: livro.tipo === 'literatura' ? 'var(--accent-purple-soft)' : 'rgba(100, 116, 139, 0.12)',
+            color: 'var(--text-primary)',
+          }}
         >
           {livro.imagem_url ? (
             <img src={livro.imagem_url} alt="" className="w-full h-full object-cover rounded-xl" />
@@ -84,25 +103,26 @@ export default function DetalheAcervoPage() {
           )}
         </div>
         <div className="flex-1">
-          <h1 className="text-xl font-medium leading-tight mb-1">{livro.titulo}</h1>
-          <p className="text-sm text-gray-500 mb-3">{livro.autor ?? 'Autor desconhecido'}</p>
+          <h1 className="text-xl font-semibold leading-tight mb-1" style={{ color: 'var(--text-primary)' }}>
+            {livro.titulo}
+          </h1>
+          <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
+            {livro.autor ?? 'Autor desconhecido'}
+          </p>
           <div className="flex gap-2 flex-wrap">
             {disponiveis > 0 ? (
-              <span className="text-xs font-medium bg-green-50 text-green-800 px-3 py-1 rounded-full">
+              <span className="badge badge-green">
                 {disponiveis} disponíve{disponiveis === 1 ? 'l' : 'is'}
               </span>
             ) : (
-              <span className="text-xs font-medium bg-red-50 text-red-800 px-3 py-1 rounded-full">
-                Todos emprestados
-              </span>
+              <span className="badge badge-red">Todos emprestados</span>
             )}
-            {livro.tipo && (
-              <span className="text-xs font-medium bg-purple-50 text-purple-800 px-3 py-1 rounded-full capitalize">
-                {livro.tipo}
-              </span>
-            )}
+            {livro.tipo && <span className="badge badge-purple capitalize">{livro.tipo}</span>}
             {livro.cdd && (
-              <span className="text-xs font-mono bg-gray-100 text-gray-600 px-3 py-1 rounded-md">
+              <span
+                className="text-xs font-mono px-3 py-1 rounded-md"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+              >
                 CDD {livro.cdd}
               </span>
             )}
@@ -110,7 +130,8 @@ export default function DetalheAcervoPage() {
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-4 mb-5 text-sm divide-y divide-gray-100">
+      {/* Info Panel */}
+      <div className="glass-card p-5 mb-5 text-sm animate-slide-up delay-2">
         {[
           ['Editora', livro.editora],
           ['Gênero', livro.genero],
@@ -118,53 +139,58 @@ export default function DetalheAcervoPage() {
           ['Série/PNLD', livro.serie],
         ]
           .filter(([, v]) => v)
-          .map(([label, valor]) => (
-            <div key={label} className="flex justify-between py-2 first:pt-0 last:pb-0">
-              <span className="text-gray-500">{label}</span>
-              <span>{valor}</span>
+          .map(([label, valor], i, arr) => (
+            <div
+              key={label}
+              className="flex justify-between py-2.5"
+              style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-default)' : 'none' }}
+            >
+              <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+              <span style={{ color: 'var(--text-primary)' }}>{valor}</span>
             </div>
           ))}
       </div>
 
-      {livro.descricao && <p className="text-sm text-gray-600 leading-relaxed mb-5">{livro.descricao}</p>}
+      {livro.descricao && (
+        <p className="text-sm leading-relaxed mb-5 animate-slide-up delay-3" style={{ color: 'var(--text-secondary)' }}>
+          {livro.descricao}
+        </p>
+      )}
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium">
+      {/* Exemplares */}
+      <div className="flex items-center justify-between mb-3 animate-slide-up delay-3">
+        <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           Exemplares físicos
-          <span className="text-gray-400 font-normal ml-1">({exemplares.length})</span>
+          <span className="ml-1" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+            ({exemplares.length})
+          </span>
         </h2>
       </div>
 
-      <div className="border rounded-xl overflow-hidden mb-6">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+      <div className="glass-card overflow-hidden mb-6 animate-slide-up delay-4">
+        <table className="dark-table">
+          <thead>
             <tr>
               {['Tombo', 'Volume', 'Edição', 'Aquisição', 'Cadastro', 'Status'].map((h) => (
-                <th key={h} className="text-left px-4 py-2.5 font-medium">
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {exemplares.map((ex) => (
-              <tr key={ex.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-2.5 font-mono text-xs">{ex.tombo ? `#${ex.tombo}` : '—'}</td>
-                <td className="px-4 py-2.5 text-gray-500">{ex.volume ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-500">{ex.edicao ?? '—'}</td>
-                <td className="px-4 py-2.5 capitalize text-gray-500">{ex.aquisicao ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-500">
+              <tr key={ex.id}>
+                <td className="font-mono text-xs">{ex.tombo ? `#${ex.tombo}` : '—'}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{ex.volume ?? '—'}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{ex.edicao ?? '—'}</td>
+                <td className="capitalize" style={{ color: 'var(--text-secondary)' }}>{ex.aquisicao ?? '—'}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>
                   {ex.data_cadastro ? new Date(ex.data_cadastro).toLocaleDateString('pt-BR') : '—'}
                 </td>
-                <td className="px-4 py-2.5">
+                <td>
                   {ex.disponivel ? (
-                    <span className="text-xs font-medium bg-green-50 text-green-800 px-2 py-0.5 rounded-full">
-                      Disponível
-                    </span>
+                    <span className="badge badge-green">Disponível</span>
                   ) : (
-                    <span className="text-xs font-medium bg-red-50 text-red-700 px-2 py-0.5 rounded-full">
-                      Emprestado
-                    </span>
+                    <span className="badge badge-red">Emprestado</span>
                   )}
                 </td>
               </tr>
@@ -176,7 +202,7 @@ export default function DetalheAcervoPage() {
       {disponiveis > 0 && (
         <button
           onClick={() => router.push(`/emprestimos/novo?acervo_id=${livro.id}`)}
-          className="w-full bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 transition-colors"
+          className="btn-primary w-full py-3.5 animate-slide-up delay-5"
         >
           Emprestar um exemplar deste livro
         </button>

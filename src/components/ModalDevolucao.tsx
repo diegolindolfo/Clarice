@@ -51,36 +51,32 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
   }
 
   return (
-    <div
-      style={{ background: 'rgba(0,0,0,0.4)' }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onFechar}
-    >
-      <div
-        className="bg-white rounded-2xl border border-gray-200 p-6 w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-medium">Confirmar devolução</h2>
+    <div className="modal-overlay" onClick={onFechar}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Confirmar devolução
+          </h2>
           {emprestimo.em_atraso ? (
-            <span className="text-xs font-medium bg-red-50 text-red-800 px-3 py-1 rounded-full">
+            <span className="badge badge-red">
               {diasAtraso} {diasAtraso === 1 ? 'dia' : 'dias'} de atraso
             </span>
           ) : (
-            <span className="text-xs font-medium bg-green-50 text-green-800 px-3 py-1 rounded-full">
-              No prazo
-            </span>
+            <span className="badge badge-green">No prazo</span>
           )}
         </div>
 
         {emprestimo.em_atraso && (
-          <div className="flex gap-3 bg-red-50 rounded-xl p-3 mb-4">
+          <div
+            className="flex gap-3 rounded-xl p-4 mb-5"
+            style={{ background: 'var(--accent-rose-soft)', border: '1px solid rgba(244, 63, 94, 0.15)' }}
+          >
             <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7.5" stroke="#A32D2D" strokeWidth="1" />
-              <rect x="7.25" y="4" width="1.5" height="5" rx="0.75" fill="#A32D2D" />
-              <rect x="7.25" y="10.5" width="1.5" height="1.5" rx="0.75" fill="#A32D2D" />
+              <circle cx="8" cy="8" r="7.5" stroke="var(--accent-rose)" strokeWidth="1" />
+              <rect x="7.25" y="4" width="1.5" height="5" rx="0.75" fill="var(--accent-rose)" />
+              <rect x="7.25" y="10.5" width="1.5" height="1.5" rx="0.75" fill="var(--accent-rose)" />
             </svg>
-            <p className="text-xs text-red-700 leading-relaxed">
+            <p className="text-xs leading-relaxed" style={{ color: '#fb7185' }}>
               Este livro deveria ter sido devolvido em{' '}
               <strong>{fmt(emprestimo.prazo_final)}</strong>.
               Registre a ocorrência se necessário.
@@ -88,7 +84,10 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-xl p-4 mb-5 text-sm divide-y divide-gray-100">
+        <div
+          className="rounded-xl p-4 mb-5 text-sm"
+          style={{ background: 'var(--bg-elevated)' }}
+        >
           {[
             ['Aluno', emprestimo.aluno_nome],
             ['Livro', `${emprestimo.titulo} — ${emprestimo.autor}`],
@@ -100,17 +99,23 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
                 ? `${hojeStr} (+${diasAtraso} ${diasAtraso === 1 ? 'dia' : 'dias'})`
                 : hojeStr,
             ],
-          ].map(([label, valor]) => (
-            <div key={label} className="flex justify-between py-2 first:pt-0 last:pb-0">
-              <span className="text-gray-500">{label}</span>
+          ].map(([label, valor], i, arr) => (
+            <div
+              key={label}
+              className="flex justify-between py-2.5"
+              style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-default)' : 'none' }}
+            >
+              <span style={{ color: 'var(--text-muted)' }}>{label}</span>
               <span
-                className={
-                  (label === 'Prazo' || label === 'Devolução') && emprestimo.em_atraso
-                    ? 'font-medium text-red-700'
-                    : label === 'Devolução'
-                    ? 'font-medium text-green-700'
-                    : ''
-                }
+                style={{
+                  color:
+                    (label === 'Prazo' || label === 'Devolução') && emprestimo.em_atraso
+                      ? 'var(--accent-rose)'
+                      : label === 'Devolução'
+                      ? 'var(--accent-emerald)'
+                      : 'var(--text-primary)',
+                  fontWeight: label === 'Prazo' || label === 'Devolução' ? 500 : 400,
+                }}
               >
                 {valor}
               </span>
@@ -119,24 +124,29 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
         </div>
 
         {erro && (
-          <div className="bg-red-50 text-red-700 text-xs rounded-lg px-3 py-2 mb-4">
+          <div
+            className="text-xs rounded-lg px-4 py-3 mb-4"
+            style={{ background: 'var(--accent-rose-soft)', color: 'var(--accent-rose)' }}
+          >
             {erro}
           </div>
         )}
 
         <div className="flex gap-3">
-          <button
-            onClick={onFechar}
-            className="flex-1 border rounded-xl py-2.5 text-sm hover:bg-gray-50"
-          >
+          <button onClick={onFechar} className="btn-ghost flex-1 py-2.5">
             Cancelar
           </button>
           <button
             onClick={confirmar}
             disabled={salvando}
-            className={`flex-[2] rounded-xl py-2.5 text-sm font-medium text-white disabled:opacity-50 transition-colors ${
-              emprestimo.em_atraso ? 'bg-red-700 hover:bg-red-800' : 'bg-blue-800 hover:bg-blue-900'
+            className={`flex-[2] rounded-2xl py-2.5 text-sm font-medium text-white transition-all ${
+              salvando ? 'opacity-50 cursor-not-allowed' : ''
             }`}
+            style={{
+              background: emprestimo.em_atraso ? 'var(--gradient-rose)' : 'var(--gradient-indigo)',
+              border: 'none',
+              cursor: salvando ? 'not-allowed' : 'pointer',
+            }}
           >
             {salvando ? 'Salvando...' : emprestimo.em_atraso ? 'Confirmar mesmo assim' : 'Confirmar devolução'}
           </button>

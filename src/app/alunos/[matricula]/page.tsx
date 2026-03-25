@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -84,26 +84,54 @@ export default function DetalheAlunoPage() {
     return new Date(data.getTime() + data.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')
   }
 
-  function iniciais(nome: string) {
-    return nome
-      .split(' ')
-      .slice(0, 2)
-      .map((p) => p[0])
-      .join('')
-      .toUpperCase()
+  const iniciais = (nome: string) =>
+    nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase()
+
+  const avatarGradient = (nome: string) => {
+    const code = nome.charCodeAt(0) % 5
+    const gradients = [
+      'var(--gradient-indigo)',
+      'var(--gradient-purple)',
+      'var(--gradient-emerald)',
+      'var(--gradient-blue)',
+      'var(--gradient-amber)',
+    ]
+    return gradients[code]
+  }
+
+  const statusBadge: Record<string, string> = {
+    EMPRESTADO: 'badge-blue',
+    RENOVADO: 'badge-purple',
+    DEVOLVIDO: 'badge-green',
+    ATRASADO: 'badge-red',
   }
 
   if (carregando)
     return (
-      <div className="max-w-3xl mx-auto p-6 text-sm text-gray-400 text-center py-16">
-        Carregando...
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="skeleton h-4 w-16 mb-8 rounded" />
+        <div className="flex gap-5 mb-6">
+          <div className="skeleton w-16 h-16 rounded-full flex-shrink-0" />
+          <div className="flex-1">
+            <div className="skeleton h-6 w-48 mb-2" />
+            <div className="skeleton h-4 w-64 mb-3" />
+            <div className="flex gap-2">
+              <div className="skeleton h-6 w-16 rounded-full" />
+              <div className="skeleton h-6 w-20 rounded-full" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
+        </div>
       </div>
     )
 
   if (!aluno)
     return (
-      <div className="max-w-3xl mx-auto p-6 text-sm text-gray-500 text-center py-16">
-        Aluno não encontrado.
+      <div className="max-w-3xl mx-auto p-6 text-center py-20" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-3xl mb-3">👤</p>
+        <p className="text-sm">Aluno não encontrado.</p>
       </div>
     )
 
@@ -118,26 +146,25 @@ export default function DetalheAlunoPage() {
       ? emprestimos.filter((e) => e.status === 'DEVOLVIDO')
       : emprestimos
 
-  const statusStyle: Record<string, string> = {
-    EMPRESTADO: 'bg-blue-50 text-blue-800',
-    RENOVADO: 'bg-purple-50 text-purple-800',
-    DEVOLVIDO: 'bg-green-50 text-green-800',
-    ATRASADO: 'bg-red-50 text-red-800',
-  }
-
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      {/* Voltar */}
+    <div className="max-w-3xl mx-auto p-6 animate-fade-in">
+      {/* Back */}
       <button
         onClick={() => router.back()}
-        className="text-sm text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-1"
+        className="text-sm flex items-center gap-1 mb-6 transition-colors"
+        style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
       >
         ← Alunos
       </button>
 
-      {/* Header do aluno */}
-      <div className="flex gap-5 mb-6">
-        <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-xl font-medium text-blue-800 flex-shrink-0">
+      {/* Student Header */}
+      <div className="flex gap-5 mb-6 animate-slide-up delay-1">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold text-white flex-shrink-0"
+          style={{ background: avatarGradient(aluno.nome) }}
+        >
           {aluno.foto_url ? (
             <img src={aluno.foto_url} alt="" className="w-full h-full rounded-full object-cover" />
           ) : (
@@ -146,70 +173,70 @@ export default function DetalheAlunoPage() {
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl font-medium">{aluno.nome}</h1>
-            {!aluno.ativo && (
-              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                Inativo
-              </span>
-            )}
+            <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {aluno.nome}
+            </h1>
+            {!aluno.ativo && <span className="badge badge-gray">Inativo</span>}
           </div>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>
             mat. {aluno.matricula} · {aluno.turma_nome}
             {aluno.email ? ` · ${aluno.email}` : ''}
           </p>
           <div className="flex gap-2 flex-wrap">
             {atrasados.length > 0 && (
-              <span className="text-xs font-medium bg-red-50 text-red-700 px-3 py-1 rounded-full">
+              <span className="badge badge-red">
                 {atrasados.length} atrasado{atrasados.length > 1 ? 's' : ''}
               </span>
             )}
-            <span className="text-xs font-medium bg-blue-50 text-blue-800 px-3 py-1 rounded-full">
+            <span className="badge badge-blue">
               {ativos.length} ativo{ativos.length !== 1 ? 's' : ''}
             </span>
-            <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+            <span className="badge badge-gray">
               {totalDevolvidos} devolvido{totalDevolvidos !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Resumo em cards */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className={`rounded-xl p-4 ${atrasados.length > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-          <p className={`text-2xl font-mono font-medium ${atrasados.length > 0 ? 'text-red-700' : ''}`}>
-            {atrasados.length}
-          </p>
-          <p className={`text-xs mt-1 ${atrasados.length > 0 ? 'text-red-600' : 'text-gray-500'}`}>
-            Atrasados
-          </p>
+      {/* Metric Cards */}
+      <div className="grid grid-cols-3 gap-3 mb-6 animate-slide-up delay-2">
+        <div
+          className="metric-card"
+          style={{ background: atrasados.length > 0 ? 'var(--gradient-rose)' : 'var(--bg-card)' }}
+        >
+          <p className="text-2xl font-bold font-mono text-white">{atrasados.length}</p>
+          <p className="text-xs mt-1 text-white/70">Atrasados</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-2xl font-mono font-medium">{ativos.length}</p>
-          <p className="text-xs mt-1 text-gray-500">Em mãos</p>
+        <div className="metric-card" style={{ background: 'var(--gradient-blue)' }}>
+          <p className="text-2xl font-bold font-mono text-white">{ativos.length}</p>
+          <p className="text-xs mt-1 text-white/70">Em mãos</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-2xl font-mono font-medium">{emprestimos.length}</p>
-          <p className="text-xs mt-1 text-gray-500">Total histórico</p>
+        <div className="metric-card" style={{ background: 'var(--bg-card)' }}>
+          <p className="text-2xl font-bold font-mono" style={{ color: 'var(--text-primary)' }}>{emprestimos.length}</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Total histórico</p>
         </div>
       </div>
 
-      {/* Filtro de empréstimos */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium">
+      {/* Filter */}
+      <div className="flex items-center justify-between mb-3 animate-slide-up delay-3">
+        <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           Histórico de empréstimos
-          <span className="text-gray-400 font-normal ml-1">({empFiltrados.length})</span>
+          <span className="ml-1" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+            ({empFiltrados.length})
+          </span>
         </h2>
         <div className="flex gap-1">
           {(['todos', 'ativos', 'devolvidos'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFiltro(f)}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors capitalize
-                ${
-                  filtro === f
-                    ? 'border-gray-400 bg-gray-100 text-gray-800 font-medium'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                }`}
+              className="text-xs px-3 py-1 rounded-full transition-all duration-200 capitalize"
+              style={{
+                background: filtro === f ? 'var(--accent-indigo-glow)' : 'transparent',
+                border: `1px solid ${filtro === f ? 'var(--accent-indigo)' : 'var(--border-default)'}`,
+                color: filtro === f ? 'var(--accent-indigo-light)' : 'var(--text-muted)',
+                fontWeight: filtro === f ? 500 : 400,
+              }}
             >
               {f}
             </button>
@@ -217,45 +244,44 @@ export default function DetalheAlunoPage() {
         </div>
       </div>
 
-      {/* Tabela de empréstimos */}
-      <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+      {/* Table */}
+      <div className="glass-card overflow-hidden animate-slide-up delay-4">
+        <table className="dark-table">
+          <thead>
             <tr>
               {['Livro', 'Saída', 'Prazo', 'Devolução', 'Status'].map((h) => (
-                <th key={h} className="text-left px-4 py-2.5 font-medium">
-                  {h}
-                </th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {empFiltrados.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-8 text-gray-400">
+                <td colSpan={5} className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
                   Nenhum empréstimo encontrado
                 </td>
               </tr>
             ) : (
               empFiltrados.map((e) => (
-                <tr key={e.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2.5">
-                    <p className="font-medium text-sm">{e.titulo}</p>
-                    <p className="text-xs text-gray-400">{e.autor}</p>
+                <tr key={e.id} className="cv-auto">
+                  <td>
+                    <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{e.titulo}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.autor}</p>
                   </td>
-                  <td className="px-4 py-2.5 text-gray-500">{fmt(e.data_saida)}</td>
-                  <td className={`px-4 py-2.5 ${e.em_atraso ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                  <td style={{ color: 'var(--text-secondary)' }}>{fmt(e.data_saida)}</td>
+                  <td style={{
+                    color: e.em_atraso ? 'var(--accent-rose)' : 'var(--text-secondary)',
+                    fontWeight: e.em_atraso ? 500 : 400,
+                  }}>
                     {fmt(e.prazo_final)}
                   </td>
-                  <td className="px-4 py-2.5 text-gray-500">
+                  <td style={{ color: 'var(--text-secondary)' }}>
                     {e.data_devolucao_real ? fmt(e.data_devolucao_real) : '—'}
                   </td>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        e.em_atraso ? statusStyle['ATRASADO'] : statusStyle[e.status] ?? 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
+                  <td>
+                    <span className={`badge ${
+                      e.em_atraso ? statusBadge['ATRASADO'] : statusBadge[e.status] ?? 'badge-gray'
+                    }`}>
                       {e.em_atraso ? 'Atrasado' : e.status.charAt(0) + e.status.slice(1).toLowerCase()}
                     </span>
                   </td>
@@ -266,11 +292,11 @@ export default function DetalheAlunoPage() {
         </table>
       </div>
 
-      {/* Ação rápida */}
+      {/* Action */}
       {aluno.ativo && (
         <button
           onClick={() => router.push('/emprestimos/novo')}
-          className="w-full mt-6 bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 transition-colors"
+          className="btn-primary w-full mt-6 py-3.5 animate-slide-up delay-5"
         >
           Novo empréstimo para {aluno.nome.split(' ')[0]}
         </button>

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -20,6 +20,23 @@ type Turma = {
   nome: string
 }
 
+function SkeletonCards() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="glass-card p-4 flex items-center gap-4">
+          <div className="skeleton w-10 h-10 rounded-full flex-shrink-0" />
+          <div className="flex-1">
+            <div className="skeleton h-4 w-36 mb-2" />
+            <div className="skeleton h-3 w-48" />
+          </div>
+          <div className="skeleton h-6 w-16 rounded-full flex-shrink-0" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function AlunosPage() {
   const router = useRouter()
   const [alunos, setAlunos] = useState<Aluno[]>([])
@@ -30,13 +47,11 @@ export default function AlunosPage() {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ativos' | 'inativos'>('ativos')
   const [carregando, setCarregando] = useState(true)
 
-  // Debounce
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 350)
     return () => clearTimeout(t)
   }, [busca])
 
-  // Carregar turmas uma vez
   useEffect(() => {
     supabase
       .from('turmas')
@@ -45,13 +60,7 @@ export default function AlunosPage() {
       .then(({ data }) => setTurmas(data ?? []))
   }, [])
 
-  // Carregar alunos
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    carregar()
-  }, [buscaDebounced, filtroTurma, filtroStatus])
-
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setCarregando(true)
 
     let query = supabase
@@ -81,7 +90,6 @@ export default function AlunosPage() {
       return
     }
 
-    // Buscar empréstimos ativos e atrasados para cada aluno
     const matriculas = data.map((a) => a.matricula)
 
     const [{ data: empAtivos }, { data: empAtrasados }] = await Promise.all([
@@ -117,51 +125,66 @@ export default function AlunosPage() {
       }))
     )
     setCarregando(false)
-  }
+  }, [buscaDebounced, filtroTurma, filtroStatus])
 
-  function iniciais(nome: string) {
-    return nome
-      .split(' ')
-      .slice(0, 2)
-      .map((p) => p[0])
-      .join('')
-      .toUpperCase()
+  useEffect(() => {
+    carregar()
+  }, [carregar])
+
+  const iniciais = useMemo(() => (nome: string) => {
+    return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase()
+  }, [])
+
+  // Gradient for avatar based on first letter
+  const avatarGradient = (nome: string) => {
+    const code = nome.charCodeAt(0) % 5
+    const gradients = [
+      'var(--gradient-indigo)',
+      'var(--gradient-purple)',
+      'var(--gradient-emerald)',
+      'var(--gradient-blue)',
+      'var(--gradient-amber)',
+    ]
+    return gradients[code]
   }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-6 animate-fade-in">
         <div>
-          <h1 className="text-xl font-medium">Alunos</h1>
-          <p className="text-xs text-gray-500 mt-1">
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>Alunos</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             {carregando ? '...' : `${alunos.length} aluno${alunos.length !== 1 ? 's' : ''}`}
           </p>
         </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        <input
-          placeholder="Buscar por nome ou matrícula..."
-          className="flex-1 min-w-48 border rounded-xl px-3 py-2 text-sm"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
+      {/* Filters */}
+      <div className="flex gap-3 mb-5 flex-wrap animate-slide-up delay-1">
+        <div className="flex-1 min-w-48 relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            placeholder="Buscar por nome ou matrícula..."
+            className="dark-input w-full pl-10"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
         <select
-          className="border rounded-xl px-3 py-2 text-sm"
+          className="dark-select"
           value={filtroTurma}
           onChange={(e) => setFiltroTurma(e.target.value)}
         >
           <option value="">Todas as turmas</option>
           {turmas.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nome}
-            </option>
+            <option key={t.id} value={t.id}>{t.nome}</option>
           ))}
         </select>
         <select
-          className="border rounded-xl px-3 py-2 text-sm"
+          className="dark-select"
           value={filtroStatus}
           onChange={(e) => setFiltroStatus(e.target.value as typeof filtroStatus)}
         >
@@ -171,27 +194,38 @@ export default function AlunosPage() {
         </select>
       </div>
 
-      {/* Lista */}
+      {/* Student List */}
       {carregando ? (
-        <div className="text-center py-16 text-sm text-gray-400">Carregando...</div>
+        <SkeletonCards />
       ) : alunos.length === 0 ? (
-        <div className="text-center py-16 text-sm text-gray-400">Nenhum aluno encontrado</div>
+        <div className="text-center py-20" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-3xl mb-3">👤</p>
+          <p className="text-sm">Nenhum aluno encontrado</p>
+        </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 animate-slide-up delay-2">
           {alunos.map((aluno) => (
             <button
               key={aluno.matricula}
               onClick={() => router.push(`/alunos/${aluno.matricula}`)}
-              className="flex items-center gap-4 p-4 border rounded-2xl text-left hover:border-gray-300 transition-colors"
+              className="flex items-center gap-4 p-4 text-left transition-all duration-200 glass-card cv-auto"
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-hover)'
+                e.currentTarget.style.transform = 'translateY(-1px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-default)'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
             >
               {/* Avatar */}
-              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-800 flex-shrink-0">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
+                style={{ background: avatarGradient(aluno.nome) }}
+              >
                 {aluno.foto_url ? (
-                  <img
-                    src={aluno.foto_url}
-                    alt=""
-                    className="w-full h-full rounded-full object-cover"
-                  />
+                  <img src={aluno.foto_url} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
                   iniciais(aluno.nome)
                 )}
@@ -200,14 +234,12 @@ export default function AlunosPage() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">{aluno.nome}</p>
-                  {!aluno.ativo && (
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                      Inativo
-                    </span>
-                  )}
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {aluno.nome}
+                  </p>
+                  {!aluno.ativo && <span className="badge badge-gray">Inativo</span>}
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   mat. {aluno.matricula} · {aluno.turma_nome}
                   {aluno.email ? ` · ${aluno.email}` : ''}
                 </p>
@@ -215,20 +247,14 @@ export default function AlunosPage() {
 
               {/* Badges */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {aluno.em_atraso && (
-                  <span className="text-xs font-medium bg-red-50 text-red-700 px-2 py-1 rounded-full">
-                    Atrasado
-                  </span>
-                )}
+                {aluno.em_atraso && <span className="badge badge-red">Atrasado</span>}
                 {aluno.emprestimos_ativos > 0 && !aluno.em_atraso && (
-                  <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                  <span className="badge badge-blue">
                     {aluno.emprestimos_ativos} livro{aluno.emprestimos_ativos > 1 ? 's' : ''}
                   </span>
                 )}
                 {aluno.emprestimos_ativos === 0 && !aluno.em_atraso && (
-                  <span className="text-xs font-medium bg-green-50 text-green-700 px-2 py-1 rounded-full">
-                    OK
-                  </span>
+                  <span className="badge badge-green">OK</span>
                 )}
               </div>
             </button>

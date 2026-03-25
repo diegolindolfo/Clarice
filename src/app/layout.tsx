@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1e3a8a',
+  themeColor: '#0a0f1e',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -36,9 +36,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.className} min-h-screen text-gray-900 bg-white`}>
+      <body className={`${inter.className} min-h-screen`}>
         <Nav />
-        {children}
+        <main className="animate-fade-in">
+          {children}
+        </main>
         <RegisterSW />
       </body>
     </html>
