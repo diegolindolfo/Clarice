@@ -65,6 +65,7 @@
   --font-heading: "Sora", "Inter", "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --nav-accent-text: #a5b4fc;
+  --nav-accent-bg: rgba(99, 102, 241, 0.08);
 }
 
 /* ── Hybrid Minimalist Light Color Palette ───────────────── */
@@ -88,6 +89,7 @@
   --text-muted: #64748b;      /* slate-500 */
   --text-inverse: #f8fafc;    /* slate-50 */
   --nav-accent-text: #4338ca;
+  --nav-accent-bg: rgba(67, 56, 202, 0.12);
 
   /* Gradients & Accents (Adapted for Light Mode visibility) */
   --gradient-indigo: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
@@ -219,6 +221,29 @@ h1, h2, h3 {
   background: rgba(248, 250, 252, 0.85); /* slate-50 mostly opaque */
 }
 
+/* Ajustes estruturais completos para o modo claro */
+.light body {
+  background:
+    radial-gradient(circle at top right, rgba(79, 70, 229, 0.06), transparent 45%),
+    radial-gradient(circle at top left, rgba(5, 150, 105, 0.05), transparent 35%),
+    var(--bg-primary);
+}
+
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(148, 163, 184, 0.3);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.light .metric-card {
+  border-color: rgba(148, 163, 184, 0.25);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.light .metric-card p {
+  color: #fff !important;
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -291,6 +316,18 @@ h1, h2, h3 {
   color: var(--text-primary);
 }
 
+.light .dark-input,
+.light .dark-select {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.light .dark-input:focus,
+.light .dark-select:focus {
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
 .cv-auto {
   content-visibility: auto;
   contain-intrinsic-size: auto 60px;
@@ -327,6 +364,15 @@ h1, h2, h3 {
   padding: 16px;
   border-bottom: 1px solid var(--border-default);
   color: var(--text-primary);
+}
+
+.light .dark-table thead th {
+  color: #475569;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.light .dark-table tbody td {
+  border-bottom-color: rgba(148, 163, 184, 0.25);
 }
 
 /* ── Gradient Cards (Now Minimalist Metric Cards) ─────── */
@@ -385,6 +431,28 @@ h1, h2, h3 {
   background: var(--bg-secondary);
   border-color: var(--border-hover);
   color: var(--text-primary);
+}
+
+.light .btn-primary {
+  background: var(--gradient-indigo);
+  color: #fff;
+}
+
+.light .btn-primary:hover {
+  filter: brightness(1.04);
+  color: #fff;
+}
+
+.light .btn-ghost {
+  background: rgba(255, 255, 255, 0.8);
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.light .btn-ghost:hover {
+  background: #fff;
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #1e293b;
 }
 
 .btn-danger {

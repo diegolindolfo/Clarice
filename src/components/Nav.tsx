@@ -128,7 +128,7 @@ export default function Nav() {
                 background: isActive
                   ? 'var(--bg-card)'
                   : accent
-                    ? 'rgba(99, 102, 241, 0.08)'
+                    ? 'var(--nav-accent-bg)'
                     : 'transparent',
                 border: isActive
                   ? '1px solid var(--border-hover)'
