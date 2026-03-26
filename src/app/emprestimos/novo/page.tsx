@@ -174,7 +174,7 @@ function NovoEmprestimoContent() {
 
     if (error) { setErro(error.message); return }
 
-    router.push('/emprestimos')
+    router.push('/emprestimos?sucesso=emprestimo-criado')
   }
 
   const prazo = (() => {

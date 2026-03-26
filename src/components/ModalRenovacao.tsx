@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 import { formatDateBR } from '@/lib/format'
 
 type Props = {
@@ -15,7 +14,7 @@ type Props = {
     renovado_em: string | null
   }
   onFechar: () => void
-  onConfirmar: () => void
+  onConfirmar: (mensagem: string) => void
 }
 
 export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Props) {
@@ -44,7 +43,7 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
       return
     }
 
-    onConfirmar()
+    onConfirmar('Renovação confirmada com sucesso.')
   }
 
   return (
