@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
 import RegisterSW from '@/components/RegisterSW'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Clarice',
@@ -36,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.className} min-h-screen`}>
+      <body className="min-h-screen">
         <Nav />
         <main className="animate-fade-in">
           {children}

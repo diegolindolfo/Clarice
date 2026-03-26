@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 import { formatDateBR } from '@/lib/format'
 
 type Props = {
@@ -16,7 +15,7 @@ type Props = {
     em_atraso: boolean
   }
   onFechar: () => void
-  onConfirmar: () => void
+  onConfirmar: (mensagem: string) => void
 }
 
 export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Props) {
@@ -47,7 +46,10 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
       return
     }
 
-    onConfirmar()
+    const mensagem = emprestimo.em_atraso
+      ? 'Devolução registrada com atraso.'
+      : 'Devolução registrada com sucesso.'
+    onConfirmar(mensagem)
   }
 
   return (
