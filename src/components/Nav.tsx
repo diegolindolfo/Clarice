@@ -121,7 +121,7 @@ export default function Nav() {
               style={{
                 textDecoration: 'none',
                 color: accent
-                  ? 'var(--accent-indigo-light)'
+                  ? 'var(--nav-accent-text)'
                   : isActive
                     ? 'var(--text-primary)'
                     : 'var(--text-muted)',
