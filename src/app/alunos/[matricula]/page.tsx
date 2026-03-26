@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
+import { formatDateBR, iniciais, avatarGradient } from '@/lib/format'
 
 type AlunoInfo = {
   matricula: number
@@ -25,6 +28,7 @@ type EmprestimoHistorico = {
 }
 
 export default function DetalheAlunoPage() {
+  const supabase = createClient()
   const { matricula } = useParams<{ matricula: string }>()
   const router = useRouter()
   const [aluno, setAluno] = useState<AlunoInfo | null>(null)

@@ -1,6 +1,9 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+const supabase = createClient()
+import { formatDateBR } from '@/lib/format'
 
 type Props = {
   emprestimo: {
@@ -26,16 +29,13 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
     ? Math.floor((hoje.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24))
     : 0
 
-  const fmt = (d: string) => {
-    const data = new Date(d)
-    return new Date(data.getTime() + data.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')
-  }
   const hojeStr = hoje.toLocaleDateString('pt-BR')
 
   async function confirmar() {
     setSalvando(true)
     setErro('')
 
+    const supabase = createClient()
     const { error } = await supabase.rpc('devolver_livro', {
       p_emprestimo_id: emprestimo.id,
     })
@@ -78,7 +78,7 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
             </svg>
             <p className="text-xs leading-relaxed" style={{ color: '#fb7185' }}>
               Este livro deveria ter sido devolvido em{' '}
-              <strong>{fmt(emprestimo.prazo_final)}</strong>.
+              <strong>{formatDateBR(emprestimo.prazo_final)}</strong>.
               Registre a ocorrência se necessário.
             </p>
           </div>
@@ -91,8 +91,8 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
           {[
             ['Aluno', emprestimo.aluno_nome],
             ['Livro', `${emprestimo.titulo} — ${emprestimo.autor}`],
-            ['Saída', fmt(emprestimo.data_saida)],
-            ['Prazo', fmt(emprestimo.prazo_final)],
+            ['Saída', formatDateBR(emprestimo.data_saida)],
+            ['Prazo', formatDateBR(emprestimo.prazo_final)],
             [
               'Devolução',
               emprestimo.em_atraso
