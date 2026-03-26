@@ -49,6 +49,7 @@ export default function EmprestimosPage() {
 
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
   const [modalRenovacao, setModalRenovacao] = useState<Emprestimo | null>(null)
+  const [confirmacao, setConfirmacao] = useState('')
 
   useEffect(() => {
     const t = setTimeout(() => setBuscaDebounced(busca), 350)
@@ -77,6 +78,18 @@ export default function EmprestimosPage() {
   useEffect(() => {
     carregar()
   }, [carregar])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sucesso = params.get('sucesso')
+    if (!sucesso) return
+
+    if (sucesso === 'emprestimo-criado') {
+      setConfirmacao('Empréstimo registrado com sucesso.')
+    }
+
+    window.history.replaceState({}, '', '/emprestimos')
+  }, [])
 
   const counts = useMemo(() => ({
     atrasados: emprestimos.filter((e) => e.em_atraso).length,
@@ -117,6 +130,26 @@ export default function EmprestimosPage() {
       </div>
 
       {/* Filters */}
+      {confirmacao && (
+        <div
+          className="rounded-xl px-4 py-3 mb-5 text-sm flex items-center justify-between gap-3 animate-slide-up delay-2"
+          style={{
+            background: 'var(--accent-emerald-soft)',
+            color: 'var(--accent-emerald)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+          }}
+        >
+          <span>{confirmacao}</span>
+          <button
+            onClick={() => setConfirmacao('')}
+            className="text-xs font-medium"
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-3 mb-5 animate-slide-up delay-2">
         <div className="flex-1 relative">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -240,7 +273,11 @@ export default function EmprestimosPage() {
             em_atraso: modalDevolucao.em_atraso,
           }}
           onFechar={() => setModalDevolucao(null)}
-          onConfirmar={() => { setModalDevolucao(null); carregar() }}
+          onConfirmar={(mensagem) => {
+            setConfirmacao(mensagem)
+            setModalDevolucao(null)
+            carregar()
+          }}
         />
       )}
 
@@ -255,7 +292,11 @@ export default function EmprestimosPage() {
             renovado_em: modalRenovacao.renovado_em,
           }}
           onFechar={() => setModalRenovacao(null)}
-          onConfirmar={() => { setModalRenovacao(null); carregar() }}
+          onConfirmar={(mensagem) => {
+            setConfirmacao(mensagem)
+            setModalRenovacao(null)
+            carregar()
+          }}
         />
       )}
     </div>
