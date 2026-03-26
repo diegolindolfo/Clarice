@@ -2,7 +2,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
 
 type Livro = {
   id: string
@@ -61,6 +63,7 @@ function SkeletonCards() {
 }
 
 export default function AcervoPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [livros, setLivros] = useState<Livro[]>([])
   const [total, setTotal] = useState(0)

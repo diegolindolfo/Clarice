@@ -1,7 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
 
 const TIPOS = ['literatura', 'paradidático', 'técnico', 'didático', 'filosofia', 'outro']
 
@@ -39,6 +41,7 @@ const INITIAL: NovoLivroForm = {
 }
 
 export default function NovoCadastroPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [form, setForm] = useState<NovoLivroForm>(INITIAL)
   const [salvando, setSalvando] = useState(false)

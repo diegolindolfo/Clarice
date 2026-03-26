@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
 import Link from 'next/link'
 import ModalDevolucao from '@/components/ModalDevolucao'
 import ModalRenovacao from '@/components/ModalRenovacao'
@@ -38,6 +40,7 @@ function SkeletonRows() {
 }
 
 export default function EmprestimosPage() {
+  const supabase = createClient()
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [busca, setBusca] = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
@@ -59,7 +62,11 @@ export default function EmprestimosPage() {
       .select('*')
       .order('data_saida', { ascending: false })
 
-    if (filtroStatus) query = query.eq('status', filtroStatus)
+    if (filtroStatus === 'ATRASADO') {
+      query = query.in('status', ['EMPRESTADO', 'RENOVADO']).eq('em_atraso', true)
+    } else if (filtroStatus) {
+      query = query.eq('status', filtroStatus)
+    }
     if (buscaDebounced) query = query.or(`aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`)
 
     const { data } = await query

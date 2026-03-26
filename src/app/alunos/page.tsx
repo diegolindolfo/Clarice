@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
+import { iniciais, avatarGradient } from '@/lib/format'
 
 type Aluno = {
   matricula: number
@@ -38,6 +41,7 @@ function SkeletonCards() {
 }
 
 export default function AlunosPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [alunos, setAlunos] = useState<Aluno[]>([])
   const [turmas, setTurmas] = useState<Turma[]>([])
@@ -131,22 +135,6 @@ export default function AlunosPage() {
     carregar()
   }, [carregar])
 
-  const iniciais = useMemo(() => (nome: string) => {
-    return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase()
-  }, [])
-
-  // Gradient for avatar based on first letter
-  const avatarGradient = (nome: string) => {
-    const code = nome.charCodeAt(0) % 5
-    const gradients = [
-      'var(--gradient-indigo)',
-      'var(--gradient-purple)',
-      'var(--gradient-emerald)',
-      'var(--gradient-blue)',
-      'var(--gradient-amber)',
-    ]
-    return gradients[code]
-  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
