@@ -1,7 +1,10 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
+import { iniciais, avatarGradient } from '@/lib/format'
 
 // ── Tipos ──────────────────────────────────────────────
 type Aluno = {
@@ -22,6 +25,7 @@ type Livro = {
 type Etapa = 'aluno' | 'livro' | 'confirmar'
 
 function NovoEmprestimoContent() {
+  const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
 

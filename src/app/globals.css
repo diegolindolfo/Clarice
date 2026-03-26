@@ -40,8 +40,73 @@
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   
+  /* Missing Gradients referenced in components */
+  --gradient-indigo: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --gradient-purple: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  --gradient-emerald: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-blue: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-amber: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-rose: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+
+  /* Missing Soft Accents (mostly used for card backgrounds and chips) */
+  --accent-rose-soft: rgba(244, 63, 94, 0.15);
+  --accent-purple-soft: rgba(168, 85, 247, 0.15);
+  --accent-emerald-soft: rgba(16, 185, 129, 0.15);
+  --accent-amber-soft: rgba(245, 158, 11, 0.15);
+  --accent-indigo-light: rgba(99, 102, 241, 0.2);
+  --accent-indigo-glow: rgba(99, 102, 241, 0.5);
+
+  /* Missing Glow Shadows */
+  --shadow-glow-indigo: 0 0 15px rgba(99, 102, 241, 0.4);
+  --shadow-glow-rose: 0 0 15px rgba(244, 63, 94, 0.4);
+  --shadow-glow-emerald: 0 0 15px rgba(16, 185, 129, 0.4);
+
   --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ── Hybrid Minimalist Light Color Palette ───────────────── */
+.light {
+  /* Core Backgrounds (Slate/Zinc-based for a premium clean look) */
+  --bg-primary: #f8fafc;      /* slate-50 */
+  --bg-secondary: #f1f5f9;    /* slate-100 */
+  --bg-card: #ffffff;         /* white */
+  --bg-card-hover: #f8fafc;   /* slate-50 */
+  --bg-elevated: #f1f5f9;     /* slate-100 */
+  --bg-input: #ffffff;
+
+  /* Crisp Borders */
+  --border-default: #e2e8f0;  /* slate-200 */
+  --border-hover: #cbd5e1;    /* slate-300 */
+  --border-focus: #0f172a;    /* slate-900 */
+
+  /* Typography */
+  --text-primary: #0f172a;    /* slate-900 */
+  --text-secondary: #475569;  /* slate-600 */
+  --text-muted: #64748b;      /* slate-500 */
+  --text-inverse: #f8fafc;    /* slate-50 */
+
+  /* Gradients & Accents (Adapted for Light Mode visibility) */
+  --gradient-indigo: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  --gradient-purple: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+  --gradient-emerald: linear-gradient(135deg, #059669 0%, #047857 100%);
+  --gradient-blue: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-amber: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  --gradient-rose: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+
+  --accent-rose-soft: rgba(225, 29, 72, 0.1);
+  --accent-purple-soft: rgba(147, 51, 234, 0.1);
+  --accent-emerald-soft: rgba(5, 150, 105, 0.1);
+  --accent-amber-soft: rgba(217, 119, 6, 0.1);
+  --accent-indigo-light: rgba(79, 70, 229, 0.15);
+  --accent-indigo-glow: rgba(79, 70, 229, 0.3);
+
+  /* Drop Shadows (Softer for Light Mode) */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-elevated: 0 10px 25px rgba(15, 23, 42, 0.1), 0 2px 5px rgba(15, 23, 42, 0.08);
+  --shadow-glow-indigo: 0 0 15px rgba(79, 70, 229, 0.25);
+  --shadow-glow-rose: 0 0 15px rgba(225, 29, 72, 0.25);
+  --shadow-glow-emerald: 0 0 15px rgba(5, 150, 105, 0.25);
 }
 
 @theme inline {
@@ -55,6 +120,11 @@
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(var(--text-primary), 0.3)); }
+  50% { opacity: 0.7; filter: drop-shadow(0 0 20px rgba(var(--text-primary), 0.6)); }
 }
 
 @keyframes fadeIn {
@@ -91,6 +161,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
@@ -121,14 +192,24 @@ body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
 .glass-nav {
-  background: rgba(9, 9, 11, 0.85); /* zinc-950 mostly opaque */
+  background: var(--bg-primary);
+  /* Fallback sem opacidade forçada que impede blur funcionar limpo */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-default);
+  transition: background 0.3s, border-color 0.3s;
+}
+
+/* No light mode, fazemos o glass-nav ficar semi-transparente como no dark */
+:root:not(.light) .glass-nav {
+  background: rgba(9, 9, 11, 0.85); /* zinc-950 mostly opaque */
+}
+.light .glass-nav {
+  background: rgba(248, 250, 252, 0.85); /* slate-50 mostly opaque */
 }
 
 .skeleton {
@@ -164,7 +245,10 @@ body {
   color: var(--text-primary);
   padding: 10px 14px;
   font-size: 0.875rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.3s;
+}
+.dark-input.pl-10 {
+  padding-left: 2.5rem !important; /* Forces left padding for search icons */
 }
 .dark-input::placeholder {
   color: var(--text-muted);
@@ -180,9 +264,9 @@ body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  padding: 10px 14px;
+  padding: 10px 40px 10px 14px !important; /* Forces right padding for dropdown arrow */
   font-size: 0.875rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.3s;
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");

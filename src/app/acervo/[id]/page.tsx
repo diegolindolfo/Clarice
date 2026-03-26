@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
 
 type Acervo = {
   id: string
@@ -28,6 +30,7 @@ type Exemplar = {
 }
 
 export default function DetalheAcervoPage() {
+  const supabase = createClient()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [livro, setLivro] = useState<Acervo | null>(null)

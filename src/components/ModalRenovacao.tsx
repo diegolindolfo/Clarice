@@ -1,6 +1,9 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+const supabase = createClient()
+import { formatDateBR } from '@/lib/format'
 
 type Props = {
   emprestimo: {
@@ -25,15 +28,11 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
   d.setDate(d.getDate() + 15)
   const novoPrazo = new Date(d.getTime() + d.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')
 
-  const fmt = (dataStr: string) => {
-    const data = new Date(dataStr)
-    return new Date(data.getTime() + data.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')
-  }
-
   async function confirmar() {
     setSalvando(true)
     setErro('')
 
+    const supabase = createClient()
     const { error } = await supabase.rpc('renovar_emprestimo', {
       p_id: emprestimo.id,
     })
@@ -79,7 +78,7 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
                 </p>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   Este empréstimo já foi renovado em{' '}
-                  <strong>{fmt(emprestimo.renovado_em!)}</strong>. Cada empréstimo permite apenas uma
+                  <strong>{formatDateBR(emprestimo.renovado_em!)}</strong>. Cada empréstimo permite apenas uma
                   renovação.
                 </p>
               </div>
@@ -97,7 +96,7 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
               {[
                 ['Aluno', emprestimo.aluno_nome],
                 ['Livro', `${emprestimo.titulo} — ${emprestimo.autor}`],
-                ['Prazo atual', fmt(emprestimo.prazo_final)],
+                ['Prazo atual', formatDateBR(emprestimo.prazo_final)],
                 ['Novo prazo', novoPrazo],
               ].map(([label, valor], i, arr) => (
                 <div

@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/utils/supabase/client'
+
+
 
 type ResumoStatus = {
   emprestados: number
@@ -39,6 +41,7 @@ function SkeletonRow() {
 }
 
 export default function DashboardPage() {
+  const supabase = createClient()
   const [resumo, setResumo] = useState<ResumoStatus | null>(null)
   const [porTurma, setPorTurma] = useState<PorTurma[]>([])
   const [livrosTop, setLivrosTop] = useState<LivroTop[]>([])
