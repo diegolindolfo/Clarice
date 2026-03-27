@@ -52,11 +52,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen flex flex-col">
         <Nav />
-        <main className="animate-fade-in">
+        <main className="animate-fade-in flex-1">
           {children}
         </main>
+        <footer className="app-footer">
+          Biblioteca Clarice Lispector, 2026, EEEP Professor José Augusto Torres
+        </footer>
         <RegisterSW />
       </body>
     </html>

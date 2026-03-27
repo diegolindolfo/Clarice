@@ -2,8 +2,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-
-
 type ResumoStatus = {
   emprestados: number
   renovados: number
@@ -16,6 +14,7 @@ type ResumoStatus = {
 type PorTurma = { turma: string; total: number }
 type LivroTop = { titulo: string; autor: string; total: number }
 type AtrasadoPorTurma = { turma: string; total: number }
+type AlunoLeitor = { nome: string; turma: string; total: number }
 
 function SkeletonCard() {
   return <div className="skeleton h-24 rounded-2xl" />
@@ -40,12 +39,30 @@ function SkeletonRow() {
   )
 }
 
+const GRADIENTS = [
+  'var(--gradient-indigo)',
+  'var(--gradient-purple)',
+  'var(--gradient-emerald)',
+  'var(--gradient-blue)',
+  'var(--gradient-amber)',
+]
+
+function avatarGradient(nome: string) {
+  return GRADIENTS[nome.charCodeAt(0) % GRADIENTS.length]
+}
+
+function iniciais(nome: string) {
+  return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase()
+}
+
 export default function DashboardPage() {
   const supabase = createClient()
   const [resumo, setResumo] = useState<ResumoStatus | null>(null)
   const [porTurma, setPorTurma] = useState<PorTurma[]>([])
   const [livrosTop, setLivrosTop] = useState<LivroTop[]>([])
   const [atrasados, setAtrasados] = useState<AtrasadoPorTurma[]>([])
+  const [topLeitores, setTopLeitores] = useState<AlunoLeitor[]>([])
+  const [leiturasPorSala, setLeiturasPorSala] = useState<PorTurma[]>([])
   const [periodo, setPeriodo] = useState<'mes' | 'mes_passado' | 'ano'>('mes')
   const [carregando, setCarregando] = useState(true)
 
@@ -102,39 +119,47 @@ export default function DashboardPage() {
       alunos_ativos: alunosAtivosCount ?? 0,
     })
 
-    const { data: empTurma } = await supabase
+    // Fetch empréstimos por turma + aluno leitor + leituras por sala
+    const { data: empPainel } = await supabase
       .from('vw_painel_aluno')
-      .select('turma')
+      .select('turma, nome, matricula, titulo, autor')
       .gte('data_saida', dataInicio)
 
-    if (empTurma) {
-      const contagem: Record<string, number> = {}
-      empTurma.forEach(({ turma }) => {
-        contagem[turma] = (contagem[turma] ?? 0) + 1
+    if (empPainel) {
+      // Empréstimos por turma (barra chart existing)
+      const contagemTurma: Record<string, number> = {}
+      empPainel.forEach(({ turma }) => {
+        contagemTurma[turma] = (contagemTurma[turma] ?? 0) + 1
       })
-      const ordenado = Object.entries(contagem)
+      const ordenadoTurma = Object.entries(contagemTurma)
         .map(([turma, total]) => ({ turma, total }))
         .sort((a, b) => b.total - a.total)
-        .slice(0, 8)
-      setPorTurma(ordenado)
-    }
+      setPorTurma(ordenadoTurma.slice(0, 8))
+      setLeiturasPorSala(ordenadoTurma)
 
-    const { data: empLivros } = await supabase
-      .from('vw_painel_aluno')
-      .select('titulo, autor')
-      .gte('data_saida', dataInicio)
-
-    if (empLivros) {
-      const contagem: Record<string, { autor: string; total: number }> = {}
-      empLivros.forEach(({ titulo, autor }) => {
-        if (!contagem[titulo]) contagem[titulo] = { autor, total: 0 }
-        contagem[titulo].total += 1
+      // Top livros
+      const contagemLivros: Record<string, { autor: string; total: number }> = {}
+      empPainel.forEach(({ titulo, autor }) => {
+        if (!contagemLivros[titulo]) contagemLivros[titulo] = { autor, total: 0 }
+        contagemLivros[titulo].total += 1
       })
-      const top = Object.entries(contagem)
+      const top = Object.entries(contagemLivros)
         .map(([titulo, v]) => ({ titulo, autor: v.autor, total: v.total }))
         .sort((a, b) => b.total - a.total)
         .slice(0, 5)
       setLivrosTop(top)
+
+      // Top leitores (alunos com mais empréstimos)
+      const contagemAluno: Record<string, { nome: string; turma: string; total: number }> = {}
+      empPainel.forEach(({ matricula, nome, turma }) => {
+        const key = String(matricula)
+        if (!contagemAluno[key]) contagemAluno[key] = { nome, turma, total: 0 }
+        contagemAluno[key].total += 1
+      })
+      const topAlunos = Object.values(contagemAluno)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5)
+      setTopLeitores(topAlunos)
     }
 
     const { data: atrasTurma } = await supabase.from('vw_emprestimos_atrasados').select('turma')
@@ -181,7 +206,6 @@ export default function DashboardPage() {
       </div>
 
       {carregando ? (
-        /* Skeleton loading state */
         <div>
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
@@ -219,7 +243,7 @@ export default function DashboardPage() {
 
             {/* Charts Row */}
             <div className="grid grid-cols-5 gap-4 mb-6 animate-slide-up delay-3">
-              {/* Bar Chart: Emprestimos por Turma */}
+              {/* Bar Chart: Empréstimos por Turma */}
               <div className="col-span-3 glass-card p-5">
                 <p className="text-xs font-medium uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
                   Empréstimos por turma
@@ -275,29 +299,88 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Bottom Grid */}
+            {/* New Widgets Row: Top Leitores + Leituras por Sala */}
+            <div className="grid grid-cols-2 gap-4 mb-6 animate-slide-up delay-4">
+              {/* Top Leitores */}
+              <div className="glass-card p-5">
+                <p className="text-xs font-medium uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
+                  Top leitores
+                </p>
+                {topLeitores.length === 0 ? (
+                  <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>Sem dados no período</p>
+                ) : (
+                  topLeitores.map(({ nome, turma, total }, i) => (
+                    <div
+                      key={nome + turma}
+                      className="flex items-center gap-3 py-3"
+                      style={{ borderBottom: i < topLeitores.length - 1 ? '1px solid var(--border-default)' : 'none' }}
+                    >
+                      {/* Avatar */}
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0"
+                        style={{ background: avatarGradient(nome) }}
+                      >
+                        {iniciais(nome)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{nome}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{turma}</p>
+                      </div>
+                      <span className="badge badge-blue">{total} {total === 1 ? 'livro' : 'livros'}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Leituras por Sala */}
+              <div className="glass-card p-5">
+                <p className="text-xs font-medium uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
+                  Leituras por sala
+                </p>
+                {leiturasPorSala.length === 0 ? (
+                  <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>Sem dados no período</p>
+                ) : (
+                  leiturasPorSala.map(({ turma, total }, i) => (
+                    <div
+                      key={turma}
+                      className="flex items-center justify-between py-2.5"
+                      style={{ borderBottom: i < leiturasPorSala.length - 1 ? '1px solid var(--border-default)' : 'none' }}
+                    >
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{turma}</span>
+                      <span className="text-sm font-mono font-medium" style={{ color: 'var(--text-secondary)' }}>{total}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Grid: Top Books + Atrasados */}
             <div className="grid grid-cols-2 gap-4 animate-slide-up delay-5">
               {/* Top Books */}
               <div className="glass-card p-5">
                 <p className="text-xs font-medium uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
                   Livros mais emprestados
                 </p>
-                {livrosTop.map(({ titulo, autor, total }, i) => (
-                  <div
-                    key={titulo}
-                    className="flex items-center gap-3 py-3"
-                    style={{ borderBottom: i < livrosTop.length - 1 ? '1px solid var(--border-default)' : 'none' }}
-                  >
-                    <span className="text-xs font-mono w-5" style={{ color: 'var(--text-muted)' }}>
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{titulo}</p>
-                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{autor}</p>
+                {livrosTop.length === 0 ? (
+                  <p className="text-sm py-4" style={{ color: 'var(--text-muted)' }}>Sem dados no período</p>
+                ) : (
+                  livrosTop.map(({ titulo, autor, total }, i) => (
+                    <div
+                      key={titulo}
+                      className="flex items-center gap-3 py-3"
+                      style={{ borderBottom: i < livrosTop.length - 1 ? '1px solid var(--border-default)' : 'none' }}
+                    >
+                      <span className="text-xs font-mono w-5" style={{ color: 'var(--text-muted)' }}>
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{titulo}</p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{autor}</p>
+                      </div>
+                      <span className="badge badge-purple">{total}×</span>
                     </div>
-                    <span className="badge badge-purple">{total}×</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Late by Class */}
@@ -327,8 +410,8 @@ export default function DashboardPage() {
                 <button
                   onClick={() => (window.location.href = '/emprestimos?status=ATRASADO')}
                   className="mt-4 text-xs transition-colors"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-indigo-light)')}
+                  style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-indigo)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                 >
                   Ver lista completa →

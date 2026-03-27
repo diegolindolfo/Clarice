@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
-/* ── Hybrid Minimalist Dark Color Palette ───────────────── */
+/* ── Minimalist Dark Palette ────────────────────────────── */
 :root {
-  /* Core Backgrounds (Zinc-based for a premium slate look) */
-  --bg-primary: #09090b;      /* zinc-950 */
-  --bg-secondary: #18181b;    /* zinc-900 */
-  --bg-card: #09090b;         /* zinc-950 matching primary for flat look */
-  --bg-card-hover: #18181b;   /* zinc-900 */
-  --bg-elevated: #27272a;     /* zinc-800 */
-  --bg-input: #09090b;
+  /* Core Backgrounds */
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --bg-card: #111113;
+  --bg-card-hover: #18181b;
+  --bg-elevated: #1e1e22;
+  --bg-input: #111113;
 
-  /* Crisp Borders */
-  --border-default: #27272a;  /* zinc-800 */
-  --border-hover: #3f3f46;    /* zinc-700 */
-  --border-focus: #fafafa;    /* high contrast focus */
+  /* Borders */
+  --border-default: #27272a;
+  --border-hover: #3f3f46;
+  --border-focus: #a1a1aa;
 
   /* Typography */
-  --text-primary: #fafafa;    /* zinc-50 */
-  --text-secondary: #a1a1aa;  /* zinc-400 */
-  --text-muted: #52525b;      /* zinc-600 */
-  --text-inverse: #09090b;    /* zinc-950 */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #63636e;
+  --text-inverse: #09090b;
 
-  /* Accents (Solid, no gradients) */
-  --accent-indigo: #6366f1;
-  --accent-blue: #3b82f6;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-purple: #a855f7;
+  /* Accents */
+  --accent-indigo: #818cf8;
+  --accent-blue: #60a5fa;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-rose: #fb7185;
+  --accent-purple: #c084fc;
 
   /* Structural */
   --radius-sm: 6px;
@@ -36,11 +36,11 @@
   --radius-xl: 16px;
   --radius-full: 9999px;
 
-  /* Shadows (Subtle, sharp drop shadows instead of huge glows) */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-  
-  /* Missing Gradients referenced in components */
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 8px 20px rgba(0, 0, 0, 0.4);
+
+  /* Gradients */
   --gradient-indigo: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   --gradient-purple: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
   --gradient-emerald: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -48,18 +48,18 @@
   --gradient-amber: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   --gradient-rose: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
 
-  /* Missing Soft Accents (mostly used for card backgrounds and chips) */
-  --accent-rose-soft: rgba(244, 63, 94, 0.15);
-  --accent-purple-soft: rgba(168, 85, 247, 0.15);
-  --accent-emerald-soft: rgba(16, 185, 129, 0.15);
-  --accent-amber-soft: rgba(245, 158, 11, 0.15);
-  --accent-indigo-light: rgba(99, 102, 241, 0.2);
-  --accent-indigo-glow: rgba(99, 102, 241, 0.5);
+  /* Soft Accents */
+  --accent-rose-soft: rgba(251, 113, 133, 0.12);
+  --accent-purple-soft: rgba(192, 132, 252, 0.12);
+  --accent-emerald-soft: rgba(52, 211, 153, 0.12);
+  --accent-amber-soft: rgba(251, 191, 36, 0.12);
+  --accent-indigo-light: rgba(129, 140, 248, 0.18);
+  --accent-indigo-glow: rgba(129, 140, 248, 0.35);
 
-  /* Missing Glow Shadows */
-  --shadow-glow-indigo: 0 0 15px rgba(99, 102, 241, 0.4);
-  --shadow-glow-rose: 0 0 15px rgba(244, 63, 94, 0.4);
-  --shadow-glow-emerald: 0 0 15px rgba(16, 185, 129, 0.4);
+  /* Glow Shadows (subtle) */
+  --shadow-glow-indigo: 0 0 10px rgba(99, 102, 241, 0.2);
+  --shadow-glow-rose: 0 0 10px rgba(244, 63, 94, 0.2);
+  --shadow-glow-emerald: 0 0 10px rgba(16, 185, 129, 0.2);
 
   --font-sans: "Inter", "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, system-ui, -apple-system, sans-serif;
   --font-heading: "Sora", "Inter", "Segoe UI", system-ui, sans-serif;
@@ -67,29 +67,37 @@
   --nav-accent-text: #a5b4fc;
 }
 
-/* ── Hybrid Minimalist Light Color Palette ───────────────── */
+/* ── Minimalist Light Palette ────────────────────────────── */
 .light {
-  /* Core Backgrounds (Slate/Zinc-based for a premium clean look) */
-  --bg-primary: #f8fafc;      /* slate-50 */
-  --bg-secondary: #f1f5f9;    /* slate-100 */
-  --bg-card: #ffffff;         /* white */
-  --bg-card-hover: #f8fafc;   /* slate-50 */
-  --bg-elevated: #f1f5f9;     /* slate-100 */
+  /* Core Backgrounds */
+  --bg-primary: #fafafa;
+  --bg-secondary: #f4f4f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
+  --bg-elevated: #f0f0f2;
   --bg-input: #ffffff;
 
-  /* Crisp Borders */
-  --border-default: #e2e8f0;  /* slate-200 */
-  --border-hover: #cbd5e1;    /* slate-300 */
-  --border-focus: #0f172a;    /* slate-900 */
+  /* Borders */
+  --border-default: #e4e4e7;
+  --border-hover: #d4d4d8;
+  --border-focus: #3f3f46;
 
   /* Typography */
-  --text-primary: #0f172a;    /* slate-900 */
-  --text-secondary: #475569;  /* slate-600 */
-  --text-muted: #64748b;      /* slate-500 */
-  --text-inverse: #f8fafc;    /* slate-50 */
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --text-inverse: #fafafa;
   --nav-accent-text: #4338ca;
 
-  /* Gradients & Accents (Adapted for Light Mode visibility) */
+  /* Accents (darker for light bg) */
+  --accent-indigo: #4f46e5;
+  --accent-blue: #2563eb;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --accent-purple: #9333ea;
+
+  /* Gradients (richer for light bg) */
   --gradient-indigo: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
   --gradient-purple: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
   --gradient-emerald: linear-gradient(135deg, #059669 0%, #047857 100%);
@@ -97,19 +105,20 @@
   --gradient-amber: linear-gradient(135deg, #d97706 0%, #b45309 100%);
   --gradient-rose: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
 
-  --accent-rose-soft: rgba(225, 29, 72, 0.1);
-  --accent-purple-soft: rgba(147, 51, 234, 0.1);
-  --accent-emerald-soft: rgba(5, 150, 105, 0.1);
-  --accent-amber-soft: rgba(217, 119, 6, 0.1);
-  --accent-indigo-light: rgba(79, 70, 229, 0.15);
-  --accent-indigo-glow: rgba(79, 70, 229, 0.3);
+  /* Soft Accents */
+  --accent-rose-soft: rgba(225, 29, 72, 0.08);
+  --accent-purple-soft: rgba(147, 51, 234, 0.08);
+  --accent-emerald-soft: rgba(5, 150, 105, 0.08);
+  --accent-amber-soft: rgba(217, 119, 6, 0.08);
+  --accent-indigo-light: rgba(79, 70, 229, 0.1);
+  --accent-indigo-glow: rgba(79, 70, 229, 0.2);
 
-  /* Drop Shadows (Softer for Light Mode) */
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08);
-  --shadow-elevated: 0 10px 25px rgba(15, 23, 42, 0.1), 0 2px 5px rgba(15, 23, 42, 0.08);
-  --shadow-glow-indigo: 0 0 15px rgba(79, 70, 229, 0.25);
-  --shadow-glow-rose: 0 0 15px rgba(225, 29, 72, 0.25);
-  --shadow-glow-emerald: 0 0 15px rgba(5, 150, 105, 0.25);
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-elevated: 0 8px 20px rgba(0, 0, 0, 0.08);
+  --shadow-glow-indigo: 0 0 8px rgba(79, 70, 229, 0.12);
+  --shadow-glow-rose: 0 0 8px rgba(225, 29, 72, 0.12);
+  --shadow-glow-emerald: 0 0 8px rgba(5, 150, 105, 0.12);
 }
 
 @theme inline {
@@ -416,19 +425,19 @@ h1, h2, h3 {
   white-space: nowrap;
   border: 1px solid transparent;
 }
-.badge-blue { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.badge-purple { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.2); color: #c084fc; }
-.badge-green { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: #34d399; }
-.badge-red { background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: #fb7185; }
-.badge-amber { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.badge-gray { background: rgba(161, 161, 170, 0.1); border-color: rgba(161, 161, 170, 0.2); color: #a1a1aa; }
+.badge-blue { background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.2); color: #93bbfd; }
+.badge-purple { background: rgba(192, 132, 252, 0.12); border-color: rgba(192, 132, 252, 0.2); color: #d8b4fe; }
+.badge-green { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
+.badge-red { background: rgba(251, 113, 133, 0.12); border-color: rgba(251, 113, 133, 0.2); color: #fda4af; }
+.badge-amber { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.2); color: #fde68a; }
+.badge-gray { background: rgba(161, 161, 170, 0.1); border-color: rgba(161, 161, 170, 0.15); color: #a1a1aa; }
 
-.light .badge-blue { background: rgba(37, 99, 235, 0.12); border-color: rgba(37, 99, 235, 0.22); color: #1d4ed8; }
-.light .badge-purple { background: rgba(147, 51, 234, 0.12); border-color: rgba(147, 51, 234, 0.22); color: #7e22ce; }
-.light .badge-green { background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.24); color: #047857; }
-.light .badge-red { background: rgba(225, 29, 72, 0.12); border-color: rgba(225, 29, 72, 0.22); color: #be123c; }
-.light .badge-amber { background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.22); color: #b45309; }
-.light .badge-gray { background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.22); color: #475569; }
+.light .badge-blue { background: rgba(37, 99, 235, 0.08); border-color: rgba(37, 99, 235, 0.18); color: #1d4ed8; }
+.light .badge-purple { background: rgba(147, 51, 234, 0.08); border-color: rgba(147, 51, 234, 0.18); color: #7e22ce; }
+.light .badge-green { background: rgba(5, 150, 105, 0.08); border-color: rgba(5, 150, 105, 0.18); color: #047857; }
+.light .badge-red { background: rgba(225, 29, 72, 0.08); border-color: rgba(225, 29, 72, 0.18); color: #be123c; }
+.light .badge-amber { background: rgba(217, 119, 6, 0.08); border-color: rgba(217, 119, 6, 0.18); color: #92400e; }
+.light .badge-gray { background: rgba(113, 113, 122, 0.08); border-color: rgba(113, 113, 122, 0.15); color: #52525b; }
 
 /* ── Modal Overlay ──────────────────────────────────────── */
 .modal-overlay {
@@ -458,4 +467,14 @@ h1, h2, h3 {
   max-width: 28rem;
   box-shadow: var(--shadow-elevated);
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.app-footer {
+  text-align: center;
+  padding: 24px 16px 16px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  opacity: 0.7;
 }
