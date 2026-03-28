@@ -1,9 +1,8 @@
 'use client'
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-import SlidePanel from '@/components/SlidePanel'
 
 
 
@@ -22,29 +21,7 @@ type Livro = {
   exemplares_disponiveis: number
 }
 
-type Exemplar = {
-  id: string
-  tombo: number | null
-  volume: string | null
-  edicao: string | null
-  aquisicao: string | null
-  data_cadastro: string | null
-  disponivel: boolean
-}
 
-type AcervoDetalhe = {
-  id: string
-  titulo: string
-  autor: string | null
-  editora: string | null
-  genero: string | null
-  categoria: string | null
-  tipo: string | null
-  cdd: string | null
-  serie: string | null
-  descricao: string | null
-  imagem_url: string | null
-}
 
 const TIPOS = ['Literatura', 'Paradidático', 'Técnico', 'Didático', 'Filosofia', 'Outro']
 const POR_PAGINA = 20
@@ -98,11 +75,7 @@ export default function AcervoPage() {
   const [disponibilidade, setDisponibilidade] = useState('')
   const [carregando, setCarregando] = useState(true)
 
-  // Sidebar state
-  const [panelAberto, setPanelAberto] = useState(false)
-  const [detalhe, setDetalhe] = useState<AcervoDetalhe | null>(null)
-  const [exemplares, setExemplares] = useState<Exemplar[]>([])
-  const [carregandoDetalhe, setCarregandoDetalhe] = useState(false)
+
 
   const [buscaDebounced, setBuscaDebounced] = useState('')
   useEffect(() => {
@@ -159,23 +132,7 @@ export default function AcervoPage() {
 
   const totalPaginas = useMemo(() => Math.ceil(total / POR_PAGINA), [total])
 
-  // Abrir sidebar com detalhes do livro
-  async function abrirDetalhe(id: string) {
-    setPanelAberto(true)
-    setCarregandoDetalhe(true)
-    setDetalhe(null)
-    setExemplares([])
 
-    const [{ data: livroData }, { data: exemplaresData }] = await Promise.all([
-      supabase.from('acervo').select('*').eq('id', id).single(),
-      supabase.from('livros_exemplares').select('*').eq('acervo_id', id).order('tombo'),
-    ])
-    setDetalhe(livroData)
-    setExemplares(exemplaresData ?? [])
-    setCarregandoDetalhe(false)
-  }
-
-  const disponiveis = exemplares.filter((e) => e.disponivel).length
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -237,7 +194,7 @@ export default function AcervoPage() {
           {livros.map((livro) => (
             <button
               key={livro.id}
-              onClick={() => abrirDetalhe(livro.id)}
+              onClick={() => router.push(`/acervo/${livro.id}`)}
               className="flex items-center gap-4 p-4 text-left transition-all duration-200 cv-auto glass-card"
               style={{ cursor: 'pointer' }}
               onMouseEnter={(e) => {
@@ -316,197 +273,6 @@ export default function AcervoPage() {
         </div>
       )}
 
-      {/* Slide Panel - Book Detail */}
-      <SlidePanel
-        aberto={panelAberto}
-        onFechar={() => setPanelAberto(false)}
-        titulo="Detalhes do título"
-      >
-        {carregandoDetalhe ? (
-          <div>
-            <div className="flex gap-4 mb-6">
-              <div className="skeleton w-20 h-28 rounded-xl flex-shrink-0" />
-              <div className="flex-1">
-                <div className="skeleton h-5 w-48 mb-2" />
-                <div className="skeleton h-4 w-36 mb-3" />
-                <div className="flex gap-2">
-                  <div className="skeleton h-5 w-20 rounded-full" />
-                  <div className="skeleton h-5 w-16 rounded-full" />
-                </div>
-              </div>
-            </div>
-            <div className="skeleton h-40 rounded-xl" />
-          </div>
-        ) : detalhe ? (
-          <div className="animate-fade-in">
-            {/* Book Header */}
-            <div className="flex gap-4 mb-6">
-              <div
-                className="w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
-                style={{
-                  background: detalhe.tipo === 'literatura' ? 'var(--accent-purple-soft)' : 'rgba(100, 116, 139, 0.12)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                {detalhe.imagem_url ? (
-                  <img src={detalhe.imagem_url} alt="" className="w-full h-full object-cover rounded-xl" />
-                ) : (
-                  detalhe.titulo[0]?.toUpperCase()
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold leading-tight mb-1" style={{ color: 'var(--text-primary)' }}>
-                  {detalhe.titulo}
-                </h3>
-                <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                  {detalhe.autor ?? 'Autor desconhecido'}
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                  {disponiveis > 0 ? (
-                    <span className="badge badge-green">
-                      {disponiveis} disponíve{disponiveis === 1 ? 'l' : 'is'}
-                    </span>
-                  ) : (
-                    <span className="badge badge-red">Todos emprestados</span>
-                  )}
-                  {detalhe.tipo && <span className="badge badge-purple capitalize">{detalhe.tipo}</span>}
-                  {detalhe.cdd && (
-                    <span
-                      className="text-xs font-mono px-3 py-1 rounded-md"
-                      style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
-                    >
-                      CDD {detalhe.cdd}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Info Panel */}
-            <div className="glass-card p-4 mb-4 text-sm">
-              {[
-                ['Editora', detalhe.editora],
-                ['Gênero', detalhe.genero],
-                ['Categoria', detalhe.categoria],
-                ['Série/PNLD', detalhe.serie],
-              ]
-                .filter(([, v]) => v)
-                .map(([label, valor], i, arr) => (
-                  <div
-                    key={label}
-                    className="flex gap-3 py-2.5"
-                    style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-default)' : 'none' }}
-                  >
-                    <span className="flex-shrink-0" style={{ color: 'var(--text-muted)', minWidth: '80px' }}>{label}</span>
-                    <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>{valor}</span>
-                  </div>
-                ))}
-            </div>
-
-            {detalhe.descricao && (
-              <DescricaoExpandivel texto={detalhe.descricao} />
-            )}
-
-            {/* Exemplares */}
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                Exemplares ({exemplares.length})
-              </h4>
-            </div>
-
-            <div className="glass-card overflow-hidden mb-4">
-              <table className="dark-table">
-                <thead>
-                  <tr>
-                    {['Tombo', 'Vol.', 'Edição', 'Status'].map((h) => (
-                      <th key={h} style={{ padding: '8px 12px', fontSize: '0.7rem' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {exemplares.map((ex) => (
-                    <tr key={ex.id}>
-                      <td className="font-mono text-xs" style={{ padding: '10px 12px' }}>{ex.tombo ? `#${ex.tombo}` : '—'}</td>
-                      <td style={{ color: 'var(--text-secondary)', padding: '10px 12px' }}>{ex.volume ?? '—'}</td>
-                      <td style={{ color: 'var(--text-secondary)', padding: '10px 12px' }}>{ex.edicao ?? '—'}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        {ex.disponivel ? (
-                          <span className="badge badge-green">Disponível</span>
-                        ) : (
-                          <span className="badge badge-red">Emprestado</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              {disponiveis > 0 && (
-                <button
-                  onClick={() => router.push(`/emprestimos/novo?acervo_id=${detalhe.id}`)}
-                  className="btn-primary flex-1 py-2.5 text-sm"
-                >
-                  Emprestar exemplar
-                </button>
-              )}
-              <button
-                onClick={() => router.push(`/acervo/${detalhe.id}`)}
-                className="btn-ghost py-2.5 text-sm px-4"
-              >
-                Abrir página →
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-            <p className="text-3xl mb-3">📚</p>
-            <p className="text-sm">Livro não encontrado.</p>
-          </div>
-        )}
-      </SlidePanel>
-    </div>
-  )
-}
-
-function DescricaoExpandivel({ texto }: { texto: string }) {
-  const [expandido, setExpandido] = useState(false)
-  const textRef = useRef<HTMLParagraphElement>(null)
-  const [overflow, setOverflow] = useState(false)
-
-  useEffect(() => {
-    const el = textRef.current
-    if (el) {
-      setOverflow(el.scrollHeight > el.clientHeight + 2)
-    }
-  }, [texto])
-
-  return (
-    <div className="mb-4">
-      <p
-        ref={textRef}
-        className={`text-sm leading-relaxed text-clamp ${expandido ? 'expanded' : ''}`}
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        {texto}
-      </p>
-      {overflow && (
-        <button
-          onClick={() => setExpandido(!expandido)}
-          className="text-xs mt-1.5 transition-colors"
-          style={{
-            color: 'var(--accent-indigo)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-          }}
-        >
-          {expandido ? 'Ler menos' : 'Ler mais'}
-        </button>
-      )}
     </div>
   )
 }

@@ -262,60 +262,38 @@ export default function DashboardPage() {
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-5 gap-4 mb-6 animate-slide-up delay-3">
+            <div className="grid grid-cols-1 gap-4 mb-6 animate-slide-up delay-3">
               {/* Bar Chart: Emprestimos por Turma */}
-              <div className="col-span-3 glass-card p-5">
+              <div className="glass-card p-5">
                 <p className="text-xs font-medium uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
                   Empréstimos por turma
                 </p>
                 {porTurma.length === 0 ? (
                   <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem dados no período</p>
                 ) : (
-                  porTurma.map(({ turma, total }, i) => (
-                    <div key={turma} className="flex items-center gap-3 mb-3">
-                      <span className="text-xs w-10 text-right font-mono" style={{ color: 'var(--text-muted)' }}>
-                        {turma}
-                      </span>
-                      <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
-                        <div
-                          className="h-full rounded-full animate-bar-grow"
-                          style={{
-                            width: `${(total / maxTurma) * 100}%`,
-                            background: 'var(--gradient-indigo)',
-                            animationDelay: `${i * 0.1}s`,
-                          }}
-                        />
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                    {porTurma.map(({ turma, total }, i) => (
+                      <div key={turma} className="flex items-center gap-3">
+                        <span className="text-xs w-10 text-right font-mono" style={{ color: 'var(--text-muted)' }}>
+                          {turma}
+                        </span>
+                        <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
+                          <div
+                            className="h-full rounded-full animate-bar-grow"
+                            style={{
+                              width: `${(total / maxTurma) * 100}%`,
+                              background: 'var(--gradient-indigo)',
+                              animationDelay: `${i * 0.1}s`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
+                          {total}
+                        </span>
                       </div>
-                      <span className="text-xs font-mono w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
-                        {total}
-                      </span>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
-              </div>
-
-              {/* Status Panel */}
-              <div className="col-span-2 glass-card p-5">
-                <p className="text-xs font-medium uppercase tracking-wider mb-5" style={{ color: 'var(--text-muted)' }}>
-                  Status atual
-                </p>
-                <div className="flex flex-col gap-2.5">
-                  {[
-                    { label: 'Emprestados', valor: resumo.emprestados, badgeClass: 'badge-blue' },
-                    { label: 'Renovados', valor: resumo.renovados, badgeClass: 'badge-purple' },
-                    { label: 'Atrasados', valor: resumo.atrasados, badgeClass: 'badge-red' },
-                    { label: 'Devolvidos', valor: resumo.devolvidos_mes, badgeClass: 'badge-green' },
-                  ].map(({ label, valor, badgeClass }) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl"
-                      style={{ background: 'var(--bg-elevated)' }}
-                    >
-                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                      <span className={`badge ${badgeClass}`}>{valor}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 

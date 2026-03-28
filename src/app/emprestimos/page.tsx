@@ -144,11 +144,11 @@ export default function EmprestimosPage() {
           { label: 'Ativos', valor: counts.ativos, gradient: 'var(--gradient-blue)' },
           { label: 'Renovados', valor: counts.renovados, gradient: 'var(--gradient-purple)' },
           { label: 'Atrasados', valor: counts.atrasados, gradient: 'var(--gradient-rose)' },
-          { label: 'Total carregado', valor: emprestimos.length, gradient: 'var(--bg-card)' },
+          { label: 'Total carregado', valor: emprestimos.length, gradient: 'var(--bg-card)', isTotalCard: true },
         ].map((c) => (
           <div key={c.label} className="metric-card" style={{ background: c.gradient }}>
-            <p className="text-xs text-white/70 mb-1">{c.label}</p>
-            <p className="text-2xl font-bold text-white font-mono">{carregando ? '–' : c.valor}</p>
+            <p className="text-xs mb-1 transition-colors" style={{ color: c.isTotalCard ? 'var(--text-secondary)' : 'rgba(255,255,255,0.7)' }}>{c.label}</p>
+            <p className="text-2xl font-bold font-mono transition-colors" style={{ color: c.isTotalCard ? 'var(--text-primary)' : 'white' }}>{carregando ? '–' : c.valor}</p>
           </div>
         ))}
       </div>

@@ -5,16 +5,22 @@ import { logout } from '@/app/login/actions'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 
-type Theme = 'icy' | 'celadon' | 'shadow'
-
 const THEME_CONFIG: { id: Theme; label: string; swatch: string; icon: React.ReactNode }[] = [
   {
-    id: 'icy',
-    label: 'Icy Blue',
-    swatch: 'linear-gradient(135deg, #0b0f14 50%, #38bdf8 50%)',
+    id: 'celadon',
+    label: 'Celadon',
+    swatch: 'linear-gradient(135deg, #f5f3ee 50%, #5b8a72 50%)',
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        <circle cx="12" cy="12" r="5" />
+        <line x1="12" y1="1" x2="12" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="23" />
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+        <line x1="1" y1="12" x2="3" y2="12" />
+        <line x1="21" y1="12" x2="23" y2="12" />
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
       </svg>
     ),
   },
@@ -119,18 +125,18 @@ const links = [
 
 export default function Nav() {
   const path = usePathname()
-  const [theme, setTheme] = useState<Theme>('icy')
+  const [theme, setTheme] = useState<Theme>('celadon')
   const [userName, setUserName] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('clarice-theme') as Theme | null
-    if (saved && ['icy', 'celadon', 'shadow'].includes(saved)) {
+    if (saved && ['celadon', 'shadow'].includes(saved)) {
       setTheme(saved)
       applyThemeClass(saved)
     } else {
-      applyThemeClass('icy')
+      applyThemeClass('celadon')
     }
 
     const supabase = createClient()
@@ -167,48 +173,48 @@ export default function Nav() {
   const currentConfig = THEME_CONFIG.find((t) => t.id === theme)!
 
   return (
-    <nav className="glass-nav sticky top-0 z-40 px-6 py-2.5 flex items-center gap-1">
-      {/* Brand — text only */}
-      <Link
-        href="/dashboard"
-        className="mr-5"
-        style={{ textDecoration: 'none', color: 'var(--text-primary)' }}
-      >
-        <span className="text-sm font-semibold tracking-tight">Clarice</span>
-      </Link>
+    <nav className="glass-nav sticky top-0 z-40 px-6 py-2.5 flex items-center justify-between">
+      <div className="flex items-center">
+        {/* Brand — text only */}
+        <Link
+          href="/dashboard"
+          className="mr-5"
+          style={{ textDecoration: 'none', color: 'var(--text-primary)' }}
+        >
+          <span className="text-sm font-semibold tracking-tight">Clarice</span>
+        </Link>
 
-      {/* Links */}
-      <div className="flex items-center gap-0.5">
-        {links.map(({ href, label, icon, accent }) => {
-          const isActive =
-            path === href ||
-            (href !== '/dashboard' && href !== '/emprestimos/novo' && path.startsWith(href))
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="relative flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg transition-all duration-200"
-              style={{
-                textDecoration: 'none',
-                color: accent
-                  ? 'var(--nav-accent-text)'
-                  : isActive
-                    ? 'var(--text-primary)'
-                    : 'var(--text-muted)',
-                background: isActive
-                  ? 'var(--bg-elevated)'
-                  : 'transparent',
-                fontWeight: isActive ? 500 : 400,
-              }}
-            >
-              <span style={{ opacity: isActive ? 1 : 0.6 }}>{icon}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </Link>
-          )
-        })}
+        {/* Links */}
+        <div className="flex items-center gap-0.5">
+          {links.map(({ href, label, icon, accent }) => {
+            const isActive =
+              path === href ||
+              (href !== '/dashboard' && href !== '/emprestimos/novo' && path.startsWith(href))
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="relative flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg transition-all duration-200"
+                style={{
+                  textDecoration: 'none',
+                  color: accent
+                    ? 'var(--nav-accent-text)'
+                    : isActive
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                  background: isActive
+                    ? 'var(--bg-elevated)'
+                    : 'transparent',
+                  fontWeight: isActive ? 500 : 400,
+                }}
+              >
+                <span style={{ opacity: isActive ? 1 : 0.6 }}>{icon}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </Link>
+            )
+          })}
+        </div>
       </div>
-
-      <div className="flex-1" />
 
       {/* Right side: theme picker, user name, logout */}
       <div className="flex items-center gap-3">

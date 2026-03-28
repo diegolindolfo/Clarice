@@ -41,10 +41,10 @@ export default function RootLayout({
               (function() {
                 try {
                   var saved = localStorage.getItem('clarice-theme');
-                  if (saved === 'celadon') {
-                    document.documentElement.classList.add('theme-celadon');
-                  } else if (saved === 'shadow') {
+                  if (saved === 'shadow') {
                     document.documentElement.classList.add('theme-shadow');
+                  } else {
+                    document.documentElement.classList.add('theme-celadon');
                   }
                 } catch (e) {}
               })();
