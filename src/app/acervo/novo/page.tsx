@@ -17,6 +17,7 @@ type NovoLivroForm = {
   cdd: string
   serie: string
   descricao: string
+  imagem_url: string
   // Primeiro exemplar
   tombo: string
   volume: string
@@ -34,6 +35,7 @@ const INITIAL: NovoLivroForm = {
   cdd: '',
   serie: '',
   descricao: '',
+  imagem_url: '',
   tombo: '',
   volume: '',
   edicao: '',
@@ -47,9 +49,11 @@ export default function NovoCadastroPage() {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState(false)
+  const [imgErro, setImgErro] = useState(false)
 
   const set = (field: keyof NovoLivroForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [field]: e.target.value }))
+    if (field === 'imagem_url') setImgErro(false)
   }
 
   async function salvar(e: React.FormEvent) {
@@ -74,6 +78,7 @@ export default function NovoCadastroPage() {
         cdd: form.cdd.trim() || null,
         serie: form.serie.trim() || null,
         descricao: form.descricao.trim() || null,
+        imagem_url: form.imagem_url.trim() || null,
       })
       .select('id')
       .single()
@@ -112,6 +117,7 @@ export default function NovoCadastroPage() {
     setForm(INITIAL)
     setErro('')
     setSucesso(false)
+    setImgErro(false)
   }
 
   return (
@@ -275,6 +281,51 @@ export default function NovoCadastroPage() {
                   onChange={set('descricao')}
                   style={{ minHeight: '80px' }}
                 />
+              </div>
+
+              {/* URL da capa */}
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                  URL da capa (opcional)
+                </label>
+                <input
+                  className="dark-input w-full"
+                  placeholder="https://exemplo.com/capa.jpg"
+                  type="url"
+                  value={form.imagem_url}
+                  onChange={set('imagem_url')}
+                />
+                {/* Preview da capa */}
+                {form.imagem_url.trim() && (
+                  <div className="mt-3 flex items-start gap-3">
+                    <div
+                      className="w-16 h-24 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--border-default)',
+                      }}
+                    >
+                      {imgErro ? (
+                        <span className="text-xs text-center px-1" style={{ color: 'var(--text-muted)' }}>
+                          Erro
+                        </span>
+                      ) : (
+                        <img
+                          src={form.imagem_url.trim()}
+                          alt="Preview da capa"
+                          className="w-full h-full object-cover"
+                          onError={() => setImgErro(true)}
+                          onLoad={() => setImgErro(false)}
+                        />
+                      )}
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                      {imgErro
+                        ? 'Não foi possível carregar a imagem. Verifique a URL.'
+                        : 'Preview da capa do livro'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/login/actions'
 import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
 
 const links = [
   {
@@ -69,6 +70,7 @@ const links = [
 export default function Nav() {
   const path = usePathname()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     // Verificar preferência guardada na root/local storage
@@ -82,6 +84,17 @@ export default function Nav() {
       setTheme('dark')
       document.documentElement.classList.remove('light')
     }
+
+    // Buscar dados do usuário logado
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        // Tentar pegar o nome do metadata, ou usar o email
+        const meta = data.user.user_metadata
+        const nome = meta?.full_name || meta?.name || null
+        setUserEmail(nome || data.user.email || null)
+      }
+    })
   }, [])
 
   const toggleTheme = () => {
@@ -158,6 +171,13 @@ export default function Nav() {
 
       {/* Utilities */}
       <div className="flex items-center gap-4">
+        {/* User name */}
+        {userEmail && (
+          <span className="text-xs hidden sm:inline truncate max-w-[160px]" style={{ color: 'var(--text-secondary)' }}>
+            {userEmail}
+          </span>
+        )}
+
         <button
           onClick={toggleTheme}
           className="p-1.5 rounded-lg border-none bg-transparent cursor-pointer flex items-center justify-center transition-all hover:bg-[var(--bg-elevated)]"

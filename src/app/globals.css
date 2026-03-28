@@ -140,6 +140,16 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
@@ -458,4 +468,59 @@ h1, h2, h3 {
   max-width: 28rem;
   box-shadow: var(--shadow-elevated);
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+/* ── Slide Panel (Sidebar) ─────────────────────────────── */
+.slide-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(9, 9, 11, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.light .slide-panel-overlay {
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.slide-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 46;
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-default);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.slide-panel.closing {
+  animation: slideOutRight 0.25s cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+.light .slide-panel {
+  box-shadow: -8px 0 30px rgba(15, 23, 42, 0.1);
+}
+
+@media (max-width: 540px) {
+  .slide-panel {
+    max-width: 100%;
+  }
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.app-footer {
+  text-align: center;
+  padding: 24px 16px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  border-top: 1px solid var(--border-default);
+  margin-top: 48px;
 }

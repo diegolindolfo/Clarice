@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Nav from '@/components/Nav'
+import Footer from '@/components/Footer'
 import RegisterSW from '@/components/RegisterSW'
 
 export const metadata: Metadata = {
@@ -52,11 +53,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen flex flex-col">
         <Nav />
-        <main className="animate-fade-in">
+        <main className="animate-fade-in flex-1">
           {children}
         </main>
+        <Footer />
         <RegisterSW />
       </body>
     </html>
