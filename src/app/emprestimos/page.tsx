@@ -1,8 +1,6 @@
 'use client'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
-
-
 import Link from 'next/link'
 import ModalDevolucao from '@/components/ModalDevolucao'
 import ModalRenovacao from '@/components/ModalRenovacao'
@@ -18,8 +16,13 @@ type Emprestimo = {
   prazo_final: string
   data_devolucao_real: string | null
   renovado_em: string | null
-  status: 'EMPRESTADO' | 'RENOVADO' | 'DEVOLVIDO' | 'ATRASADO'
+  status: 'EMPRESTADO' | 'RENOVADO' | 'DEVOLVIDO'
   em_atraso: boolean
+}
+
+function fmt(d: string) {
+  const data = new Date(d)
+  return new Date(data.getTime() + data.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')
 }
 
 function SkeletonRows() {
@@ -40,7 +43,6 @@ function SkeletonRows() {
 }
 
 export default function EmprestimosPage() {
-  const supabase = createClient()
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [busca, setBusca] = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
@@ -58,6 +60,7 @@ export default function EmprestimosPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
     let query = supabase
       .from('vw_painel_aluno')
       .select('*')
@@ -68,7 +71,9 @@ export default function EmprestimosPage() {
     } else if (filtroStatus) {
       query = query.eq('status', filtroStatus)
     }
-    if (buscaDebounced) query = query.or(`aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`)
+    if (buscaDebounced) {
+      query = query.or(`aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`)
+    }
 
     const { data } = await query
     setEmprestimos(data ?? [])
@@ -83,11 +88,9 @@ export default function EmprestimosPage() {
     const params = new URLSearchParams(window.location.search)
     const sucesso = params.get('sucesso')
     if (!sucesso) return
-
     if (sucesso === 'emprestimo-criado') {
       setConfirmacao('Empréstimo registrado com sucesso.')
     }
-
     window.history.replaceState({}, '', '/emprestimos')
   }, [])
 
@@ -97,13 +100,38 @@ export default function EmprestimosPage() {
     renovados: emprestimos.filter((e) => e.status === 'RENOVADO').length,
   }), [emprestimos])
 
+  function getDisplayStatus(e: Emprestimo) {
+    if (e.em_atraso && e.status !== 'DEVOLVIDO') return 'ATRASADO'
+    return e.status
+  }
+
+  function canDevolver(e: Emprestimo) {
+    return e.status === 'EMPRESTADO' || e.status === 'RENOVADO'
+  }
+
+  function canRenovar(e: Emprestimo) {
+    return e.status === 'EMPRESTADO' && !e.em_atraso
+  }
+
+  function handleOpenDevolucao(e: React.MouseEvent, emp: Emprestimo) {
+    e.stopPropagation()
+    e.preventDefault()
+    setModalDevolucao(emp)
+  }
+
+  function handleOpenRenovacao(e: React.MouseEvent, emp: Emprestimo) {
+    e.stopPropagation()
+    e.preventDefault()
+    setModalRenovacao(emp)
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8 animate-fade-in">
         <div>
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>Empréstimos</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Biblioteca Escolar Clarice</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Gestão de empréstimos</p>
         </div>
         <Link href="/emprestimos/novo" className="btn-primary" style={{ textDecoration: 'none' }}>
           + Novo empréstimo
@@ -118,25 +146,21 @@ export default function EmprestimosPage() {
           { label: 'Atrasados', valor: counts.atrasados, gradient: 'var(--gradient-rose)' },
           { label: 'Total carregado', valor: emprestimos.length, gradient: 'var(--bg-card)' },
         ].map((c) => (
-          <div
-            key={c.label}
-            className="metric-card"
-            style={{ background: c.gradient }}
-          >
+          <div key={c.label} className="metric-card" style={{ background: c.gradient }}>
             <p className="text-xs text-white/70 mb-1">{c.label}</p>
             <p className="text-2xl font-bold text-white font-mono">{carregando ? '–' : c.valor}</p>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Confirmation */}
       {confirmacao && (
         <div
-          className="rounded-xl px-4 py-3 mb-5 text-sm flex items-center justify-between gap-3 animate-slide-up delay-2"
+          className="rounded-xl px-4 py-3 mb-5 text-sm flex items-center justify-between gap-3 animate-slide-up"
           style={{
             background: 'var(--accent-emerald-soft)',
             color: 'var(--accent-emerald)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
+            border: '1px solid rgba(52, 211, 153, 0.2)',
           }}
         >
           <span>{confirmacao}</span>
@@ -150,6 +174,7 @@ export default function EmprestimosPage() {
         </div>
       )}
 
+      {/* Filters */}
       <div className="flex gap-3 mb-5 animate-slide-up delay-2">
         <div className="flex-1 relative">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -196,61 +221,80 @@ export default function EmprestimosPage() {
               </tr>
             ) : (
               emprestimos.map((e) => {
-                const dataSaida = new Date(e.data_saida)
-                const prazoFinal = new Date(e.prazo_final)
+                const displayStatus = getDisplayStatus(e)
                 return (
                   <tr key={e.emprestimo_id} className="cv-auto">
                     <td>
-                      <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{e.aluno_nome}</p>
+                      <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{e.aluno_nome}</p>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.turma} · {e.matricula}</p>
                     </td>
                     <td>
-                      <p style={{ color: 'var(--text-primary)' }}>{e.titulo}</p>
+                      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{e.titulo}</p>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.autor}</p>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(dataSaida.getTime() + dataSaida.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')}
+                    <td className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      {fmt(e.data_saida)}
                     </td>
-                    <td style={{ color: e.em_atraso ? 'var(--accent-rose)' : 'var(--text-secondary)', fontWeight: e.em_atraso ? 500 : 400 }}>
-                      {new Date(prazoFinal.getTime() + prazoFinal.getTimezoneOffset() * 60000).toLocaleDateString('pt-BR')}
+                    <td
+                      className="text-sm"
+                      style={{
+                        color: e.em_atraso ? 'var(--accent-rose)' : 'var(--text-secondary)',
+                        fontWeight: e.em_atraso ? 500 : 400,
+                      }}
+                    >
+                      {fmt(e.prazo_final)}
                     </td>
                     <td>
                       <span className={`badge ${
-                        e.status === 'EMPRESTADO' ? 'badge-blue' :
-                        e.status === 'RENOVADO' ? 'badge-purple' :
-                        e.status === 'DEVOLVIDO' ? 'badge-green' : 'badge-red'
+                        displayStatus === 'ATRASADO' ? 'badge-red' :
+                        displayStatus === 'EMPRESTADO' ? 'badge-blue' :
+                        displayStatus === 'RENOVADO' ? 'badge-purple' :
+                        'badge-green'
                       }`}>
-                        {e.status.charAt(0) + e.status.slice(1).toLowerCase()}
+                        {displayStatus === 'ATRASADO' ? 'Atrasado' :
+                         displayStatus === 'EMPRESTADO' ? 'Emprestado' :
+                         displayStatus === 'RENOVADO' ? 'Renovado' :
+                         'Devolvido'}
                       </span>
                     </td>
                     <td>
-                      {e.status === 'EMPRESTADO' && (
+                      {canDevolver(e) && (
                         <div className="flex gap-2">
-                          <button onClick={() => setModalDevolucao(e)} className="btn-ghost text-xs py-1.5 px-3">
+                          <button
+                            type="button"
+                            onClick={(ev) => handleOpenDevolucao(ev, e)}
+                            className="text-xs py-1.5 px-3 rounded-lg font-medium transition-all cursor-pointer"
+                            style={
+                              e.em_atraso
+                                ? {
+                                    background: 'var(--accent-rose-soft)',
+                                    color: 'var(--accent-rose)',
+                                    border: '1px solid rgba(251, 113, 133, 0.2)',
+                                  }
+                                : {
+                                    background: 'transparent',
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid var(--border-default)',
+                                  }
+                            }
+                          >
                             Devolver
                           </button>
-                          <button onClick={() => setModalRenovacao(e)} className="btn-ghost text-xs py-1.5 px-3">
-                            Renovar
-                          </button>
+                          {canRenovar(e) && (
+                            <button
+                              type="button"
+                              onClick={(ev) => handleOpenRenovacao(ev, e)}
+                              className="text-xs py-1.5 px-3 rounded-lg font-medium transition-all cursor-pointer"
+                              style={{
+                                background: 'transparent',
+                                color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-default)',
+                              }}
+                            >
+                              Renovar
+                            </button>
+                          )}
                         </div>
-                      )}
-                      {e.status === 'RENOVADO' && (
-                        <button onClick={() => setModalDevolucao(e)} className="btn-ghost text-xs py-1.5 px-3">
-                          Devolver
-                        </button>
-                      )}
-                      {e.status === 'ATRASADO' && (
-                        <button
-                          onClick={() => setModalDevolucao(e)}
-                          className="text-xs py-1.5 px-3 rounded-lg font-medium transition-all"
-                          style={{
-                            background: 'var(--accent-rose-soft)',
-                            color: 'var(--accent-rose)',
-                            border: '1px solid rgba(244, 63, 94, 0.2)',
-                          }}
-                        >
-                          Devolver
-                        </button>
                       )}
                     </td>
                   </tr>
@@ -261,6 +305,7 @@ export default function EmprestimosPage() {
         </table>
       </div>
 
+      {/* Modal: Devolução */}
       {modalDevolucao && (
         <ModalDevolucao
           emprestimo={{
@@ -281,6 +326,7 @@ export default function EmprestimosPage() {
         />
       )}
 
+      {/* Modal: Renovação */}
       {modalRenovacao && (
         <ModalRenovacao
           emprestimo={{

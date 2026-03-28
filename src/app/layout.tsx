@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Nav from '@/components/Nav'
+import Footer from '@/components/Footer'
 import RegisterSW from '@/components/RegisterSW'
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0f1e',
+  themeColor: '#0b0f14',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -39,12 +40,11 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var saved = localStorage.getItem('theme');
-                  var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-                  if (saved === 'light' || (!saved && prefersLight)) {
-                    document.documentElement.classList.add('light');
-                  } else {
-                    document.documentElement.classList.remove('light');
+                  var saved = localStorage.getItem('clarice-theme');
+                  if (saved === 'celadon') {
+                    document.documentElement.classList.add('theme-celadon');
+                  } else if (saved === 'shadow') {
+                    document.documentElement.classList.add('theme-shadow');
                   }
                 } catch (e) {}
               })();
@@ -52,11 +52,12 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen">
+      <body className="min-h-screen flex flex-col">
         <Nav />
-        <main className="animate-fade-in">
+        <main className="animate-fade-in flex-1">
           {children}
         </main>
+        <Footer />
         <RegisterSW />
       </body>
     </html>
