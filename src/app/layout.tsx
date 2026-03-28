@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0f1e',
+  themeColor: '#0b0f14',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -40,12 +40,11 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var saved = localStorage.getItem('theme');
-                  var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
-                  if (saved === 'light' || (!saved && prefersLight)) {
-                    document.documentElement.classList.add('light');
-                  } else {
-                    document.documentElement.classList.remove('light');
+                  var saved = localStorage.getItem('clarice-theme');
+                  if (saved === 'celadon') {
+                    document.documentElement.classList.add('theme-celadon');
+                  } else if (saved === 'shadow') {
+                    document.documentElement.classList.add('theme-shadow');
                   }
                 } catch (e) {}
               })();

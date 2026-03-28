@@ -3,8 +3,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-
-
 const TIPOS = ['literatura', 'paradidático', 'técnico', 'didático', 'filosofia', 'outro']
 
 type NovoLivroForm = {

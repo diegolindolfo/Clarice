@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
@@ -394,19 +394,17 @@ export default function AcervoPage() {
                 .map(([label, valor], i, arr) => (
                   <div
                     key={label}
-                    className="flex justify-between py-2"
+                    className="flex gap-3 py-2.5"
                     style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border-default)' : 'none' }}
                   >
-                    <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{valor}</span>
+                    <span className="flex-shrink-0" style={{ color: 'var(--text-muted)', minWidth: '80px' }}>{label}</span>
+                    <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>{valor}</span>
                   </div>
                 ))}
             </div>
 
             {detalhe.descricao && (
-              <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
-                {detalhe.descricao}
-              </p>
+              <DescricaoExpandivel texto={detalhe.descricao} />
             )}
 
             {/* Exemplares */}
@@ -473,6 +471,46 @@ export default function AcervoPage() {
   )
 }
 
+function DescricaoExpandivel({ texto }: { texto: string }) {
+  const [expandido, setExpandido] = useState(false)
+  const textRef = useRef<HTMLParagraphElement>(null)
+  const [overflow, setOverflow] = useState(false)
+
+  useEffect(() => {
+    const el = textRef.current
+    if (el) {
+      setOverflow(el.scrollHeight > el.clientHeight + 2)
+    }
+  }, [texto])
+
+  return (
+    <div className="mb-4">
+      <p
+        ref={textRef}
+        className={`text-sm leading-relaxed text-clamp ${expandido ? 'expanded' : ''}`}
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        {texto}
+      </p>
+      {overflow && (
+        <button
+          onClick={() => setExpandido(!expandido)}
+          className="text-xs mt-1.5 transition-colors"
+          style={{
+            color: 'var(--accent-indigo)',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          {expandido ? 'Ler menos' : 'Ler mais'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -480,8 +518,8 @@ function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => voi
       className="text-xs px-4 py-1.5 rounded-full whitespace-nowrap transition-all duration-200"
       style={{
         background: ativo ? 'var(--accent-indigo-glow)' : 'transparent',
-        border: `1px solid ${ativo ? 'var(--accent-indigo)' : 'var(--border-default)'}`,
-        color: ativo ? 'var(--accent-indigo-light)' : 'var(--text-muted)',
+        border: `1px solid ${ativo ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+        color: ativo ? 'var(--accent-primary)' : 'var(--text-muted)',
         fontWeight: ativo ? 500 : 400,
       }}
     >

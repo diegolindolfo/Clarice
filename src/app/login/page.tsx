@@ -5,18 +5,33 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
   return (
     <div className="flex h-screen items-center justify-center p-4">
       <div className="glass-card w-full max-w-sm p-8 flex flex-col items-center">
-        <h1 className="text-2xl font-bold mb-2">Acesso CLARICE</h1>
-        <p className="text-sm text-zinc-400 mb-8">Faça login para continuar</p>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+          Acesso Clarice
+        </h1>
+        <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
+          Faça login para continuar
+        </p>
 
         {searchParams.error && (
-          <div className="w-full bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm p-3 rounded-md mb-6">
+          <div
+            className="w-full text-sm p-3 rounded-md mb-6"
+            style={{
+              background: 'var(--accent-rose-soft)',
+              border: '1px solid rgba(251, 113, 133, 0.2)',
+              color: 'var(--accent-rose)',
+            }}
+          >
             {searchParams.error}
           </div>
         )}
 
         <form className="w-full flex flex-col gap-4" action={login}>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-zinc-300">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               E-mail
             </label>
             <input
@@ -30,7 +45,11 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-zinc-300">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               Senha
             </label>
             <input

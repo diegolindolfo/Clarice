@@ -444,8 +444,8 @@ export default function AlunosPage() {
                     className="text-[0.65rem] px-2.5 py-1 rounded-full transition-all duration-200 capitalize"
                     style={{
                       background: filtroHist === f ? 'var(--accent-indigo-glow)' : 'transparent',
-                      border: `1px solid ${filtroHist === f ? 'var(--accent-indigo)' : 'var(--border-default)'}`,
-                      color: filtroHist === f ? 'var(--accent-indigo-light)' : 'var(--text-muted)',
+                      border: `1px solid ${filtroHist === f ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                      color: filtroHist === f ? 'var(--accent-primary)' : 'var(--text-muted)',
                       fontWeight: filtroHist === f ? 500 : 400,
                     }}
                   >

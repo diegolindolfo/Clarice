@@ -237,8 +237,8 @@ export default function DetalheAlunoPage() {
               className="text-xs px-3 py-1 rounded-full transition-all duration-200 capitalize"
               style={{
                 background: filtro === f ? 'var(--accent-indigo-glow)' : 'transparent',
-                border: `1px solid ${filtro === f ? 'var(--accent-indigo)' : 'var(--border-default)'}`,
-                color: filtro === f ? 'var(--accent-indigo-light)' : 'var(--text-muted)',
+                border: `1px solid ${filtro === f ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+                color: filtro === f ? 'var(--accent-primary)' : 'var(--text-muted)',
                 fontWeight: filtro === f ? 500 : 400,
               }}
             >

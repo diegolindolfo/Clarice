@@ -2,8 +2,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-
-
 import { iniciais, avatarGradient } from '@/lib/format'
 
 // ── Tipos ──────────────────────────────────────────────
@@ -183,18 +181,7 @@ function NovoEmprestimoContent() {
     return d.toLocaleDateString('pt-BR')
   })()
 
-  function iniciais(nome: string) {
-    return nome.split(' ').slice(0, 2).map((p) => p[0]).join('').toUpperCase()
-  }
-
-  const avatarGradient = (nome: string) => {
-    const code = nome.charCodeAt(0) % 5
-    const gradients = [
-      'var(--gradient-indigo)', 'var(--gradient-purple)', 'var(--gradient-emerald)',
-      'var(--gradient-blue)', 'var(--gradient-amber)',
-    ]
-    return gradients[code]
-  }
+  // iniciais() and avatarGradient() imported from @/lib/format
 
   const etapas: Etapa[] = ['aluno', 'livro', 'confirmar']
 
@@ -330,7 +317,7 @@ function NovoEmprestimoContent() {
                 onClick={() => { setAlunoSelecionado(null); setEtapa('aluno') }}
                 className="text-xs transition-colors"
                 style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-indigo-light)')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-primary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
               >
                 Trocar

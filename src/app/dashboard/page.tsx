@@ -376,7 +376,7 @@ export default function DashboardPage() {
                   onClick={() => (window.location.href = '/emprestimos?status=ATRASADO')}
                   className="mt-4 text-xs transition-colors"
                   style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-indigo-light)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent-primary)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                 >
                   Ver lista completa →
