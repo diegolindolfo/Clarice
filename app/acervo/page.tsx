@@ -94,14 +94,14 @@ export default function AcervoPage() {
         </button>
       </div>
 
-      <div className="flex gap-2 mb-3 flex-wrap">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <input
           placeholder="Buscar por título, autor, CDD..."
-          className="flex-1 min-w-48"
+          className="flex-1 min-w-48 !h-[38px]"
           value={busca}
           onChange={e => setBusca(e.target.value)}
         />
-        <select value={disponibilidade} onChange={e => setDisponibilidade(e.target.value)} className="min-w-36">
+        <select value={disponibilidade} onChange={e => setDisponibilidade(e.target.value)} className="min-w-36 !w-auto !h-[38px]">
           <option value="">Disponibilidade</option>
           <option value="sim">Disponíveis</option>
           <option value="nao">Indisponíveis</option>

@@ -173,14 +173,18 @@ export default function EmprestimosPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4">
         <input
           placeholder="Buscar aluno ou livro..."
-          className="flex-1"
+          className="flex-1 !h-[38px]"
           value={busca}
           onChange={e => setBusca(e.target.value)}
         />
-        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="min-w-40">
+        <select
+          value={filtroStatus}
+          onChange={e => setFiltroStatus(e.target.value)}
+          className="min-w-40 !w-auto !h-[38px]"
+        >
           <option value="">Todos os status</option>
           <option value="EMPRESTADO">Emprestado</option>
           <option value="RENOVADO">Renovado</option>
@@ -190,7 +194,7 @@ export default function EmprestimosPage() {
         {(busca || filtroStatus) && (
           <button
             onClick={() => { setBusca(''); setFiltroStatus('') }}
-            className="text-sm text-gray-500 hover:text-gray-800 px-2"
+            className="text-sm text-gray-500 hover:text-gray-800 px-2 h-[38px]"
           >
             Limpar
           </button>
