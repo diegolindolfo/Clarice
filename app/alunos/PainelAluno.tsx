@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type Aluno = { matricula: number; nome: string; turma: string; email: string | null; em_atraso: boolean }
+type Aluno = { matricula: number; nome: string; turma: string; email: string | null; em_atraso: boolean; foto_url?: string | null }
 
 type Emprestimo = {
   emprestimo_id: string; titulo: string; autor: string
@@ -70,9 +70,13 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
   return (
     <div>
       <div className="flex items-center gap-4 mb-5">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
-          {iniciais(aluno.nome)}
-        </div>
+        {aluno.foto_url ? (
+          <img src={aluno.foto_url} alt={aluno.nome} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
+            {iniciais(aluno.nome)}
+          </div>
+        )}
         <div className="flex-1">
           <h2 className="text-lg font-medium">{aluno.nome}</h2>
           <p className="text-xs text-gray-500">mat. {aluno.matricula} · {aluno.turma}</p>
