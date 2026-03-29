@@ -6,7 +6,7 @@ import PainelAluno from './PainelAluno'
 
 type Aluno = {
   matricula: number; nome: string; turma: string; turma_id: number
-  email: string | null; ativo: boolean; em_atraso: boolean
+  email: string | null; ativo: boolean; em_atraso: boolean; foto_url?: string | null
 }
 
 const CORES = [
@@ -60,7 +60,7 @@ function AlunosContent() {
 
     let query = supabase
       .from('alunos')
-      .select('matricula, nome, email, ativo, turma_id, turmas(nome)')
+      .select('matricula, nome, email, ativo, turma_id, foto_url, turmas(nome)')
       .eq('ativo', true)
       .order('nome')
       .limit(100)
@@ -97,7 +97,7 @@ function AlunosContent() {
     const lista: Aluno[] = data.map(a => ({
       matricula: a.matricula, nome: a.nome, turma: (a.turmas as any)?.nome ?? '',
       turma_id: a.turma_id, email: a.email, ativo: a.ativo,
-      em_atraso: atrasadosSet.has(a.matricula),
+      em_atraso: atrasadosSet.has(a.matricula), foto_url: a.foto_url,
     }))
 
     setAlunos(lista)
@@ -159,9 +159,13 @@ function AlunosContent() {
                   onClick={() => setSelecionado(aluno)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b last:border-none transition-colors ${ativo ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
                 >
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
-                    {iniciais(aluno.nome)}
-                  </div>
+                  {aluno.foto_url ? (
+                    <img src={aluno.foto_url} alt={aluno.nome} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
+                      {iniciais(aluno.nome)}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${ativo ? 'font-medium' : ''}`}>{aluno.nome}</p>
                     <p className="text-xs text-gray-400">{aluno.turma} · {aluno.matricula}</p>

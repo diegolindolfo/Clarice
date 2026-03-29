@@ -66,7 +66,13 @@ export default function EmprestimosPage() {
       .order('data_saida', { ascending: false })
       .limit(200)
 
-    if (filtroStatus) query = query.eq('status', filtroStatus)
+    if (filtroStatus) {
+      if (filtroStatus === 'ATRASADO') {
+        query = query.eq('em_atraso', true)
+      } else {
+        query = query.eq('status', filtroStatus)
+      }
+    }
     if (buscaDebounced) {
       query = query.or(
         `aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`
