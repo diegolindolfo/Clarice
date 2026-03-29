@@ -1,10 +1,14 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  typescript: {
-    // Permite build mesmo com warnings de tipo (ex: `any`)
-    ignoreBuildErrors: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'covers.openlibrary.org' },
+    ],
   },
-};
+  // Desativa telemetria
+  experimental: {},
+}
 
-export default nextConfig;
+export default nextConfig
