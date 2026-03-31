@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { sanitizeBusca } from '@/lib/utils'
+import Chip from '@/components/Chip'
 
 type Livro = {
   id: string; titulo: string; autor: string | null; tipo: string | null
@@ -18,14 +20,6 @@ function corTipo(tipo: string | null) {
     didático: '#FAEEDA', filosofia: '#E6F1FB', outro: '#F1EFE8',
   }
   return m[tipo?.toLowerCase() ?? ''] ?? '#F1EFE8'
-}
-
-function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className={`text-xs px-4 py-1.5 rounded-full border whitespace-nowrap transition-colors ${ativo ? 'border-gray-400 bg-gray-100 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-      {children}
-    </button>
-  )
 }
 
 export default function AcervoPage() {
@@ -48,6 +42,7 @@ export default function AcervoPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
 
     let query = supabase
       .from('vw_acervo_catalogo')
@@ -56,10 +51,12 @@ export default function AcervoPage() {
       .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
 
     if (buscaDebounced.length >= 2) {
+      const termo = sanitizeBusca(buscaDebounced)
       const { data: ids } = await supabase
         .from('acervo')
         .select('id')
-        .or(`titulo.ilike.%${buscaDebounced}%,autor.ilike.%${buscaDebounced}%,cdd.ilike.%${buscaDebounced}%`)
+        .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
+        .limit(100)
 
       const listaIds = ids?.map(r => r.id) ?? []
       if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
@@ -114,7 +111,19 @@ export default function AcervoPage() {
       </div>
 
       {carregando ? (
-        <div className="text-center py-16 text-sm text-gray-400">Carregando...</div>
+        <div className="flex flex-col gap-3 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border rounded-2xl animate-pulse">
+              <div className="w-12 h-16 rounded-lg bg-gray-100 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="h-4 bg-gray-100 rounded w-48 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-32 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-24" />
+              </div>
+              <div className="h-5 bg-gray-100 rounded-full w-20 flex-shrink-0" />
+            </div>
+          ))}
+        </div>
       ) : livros.length === 0 ? (
         <div className="text-center py-16 text-sm text-gray-400">Nenhum título encontrado</div>
       ) : (

@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect, useRef } from 'react'
+import { createClient } from '@/lib/supabase'
+import { fmt } from '@/lib/utils'
 
 type Props = {
   emprestimo: {
@@ -16,15 +17,6 @@ type Props = {
   onConfirmar: () => void
 }
 
-// BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC → data aparece um dia antes no Brasil.
-// Extraímos os componentes manualmente para construir a data no fuso local.
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
-}
-
-// BUG CORRIGIDO: cálculo de diasAtraso comparava timestamp local com UTC midnight,
-// podendo ser impreciso perto de meia-noite. Agora compara apenas as datas (sem horário).
 function calcDiasAtraso(prazoFinal: string): number {
   const [y, m, d] = prazoFinal.split('T')[0].split('-').map(Number)
   const prazo = new Date(y, m - 1, d)
@@ -36,13 +28,36 @@ function calcDiasAtraso(prazoFinal: string): number {
 export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Props) {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const diasAtraso = emprestimo.em_atraso ? calcDiasAtraso(emprestimo.prazo_final) : 0
   const hojeStr = new Date().toLocaleDateString('pt-BR')
 
+  // Acessibilidade: Escape para fechar + trap de foco
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { onFechar(); return }
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    // Foco inicial no modal
+    dialogRef.current?.querySelector<HTMLElement>('button')?.focus()
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onFechar])
+
   async function confirmar() {
     setSalvando(true)
     setErro('')
+    const supabase = createClient()
     const { error } = await supabase.rpc('devolver_livro', { p_emprestimo_id: emprestimo.id })
     setSalvando(false)
     if (error) { setErro(error.message); return }
@@ -54,8 +69,12 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={onFechar}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirmar devolução"
     >
       <div
+        ref={dialogRef}
         className="bg-white rounded-2xl border border-gray-200 p-6 w-full max-w-md"
         onClick={e => e.stopPropagation()}
       >
@@ -74,7 +93,7 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
 
         {emprestimo.em_atraso && (
           <div className="flex gap-3 bg-red-50 rounded-xl p-3 mb-4">
-            <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="8" cy="8" r="7.5" stroke="#A32D2D" strokeWidth="1"/>
               <rect x="7.25" y="4" width="1.5" height="5" rx="0.75" fill="#A32D2D"/>
               <rect x="7.25" y="10.5" width="1.5" height="1.5" rx="0.75" fill="#A32D2D"/>

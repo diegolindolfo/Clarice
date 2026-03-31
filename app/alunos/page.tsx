@@ -1,28 +1,14 @@
 'use client'
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { corAvatar, iniciais, sanitizeBusca } from '@/lib/utils'
+import Chip from '@/components/Chip'
 import PainelAluno from './PainelAluno'
 
 type Aluno = {
   matricula: number; nome: string; turma: string; turma_id: number
   email: string | null; ativo: boolean; em_atraso: boolean; foto_url?: string | null
-}
-
-const CORES = [
-  { bg: '#E6F1FB', tc: '#0C447C' }, { bg: '#EEEDFE', tc: '#3C3489' },
-  { bg: '#E1F5EE', tc: '#085041' }, { bg: '#FAEEDA', tc: '#633806' },
-  { bg: '#FAECE7', tc: '#712B13' }, { bg: '#FBEAF0', tc: '#72243E' },
-]
-function corAvatar(m: number) { return CORES[m % CORES.length] }
-function iniciais(nome: string) { return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase() }
-
-function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className={`text-xs px-3 py-1 rounded-full border whitespace-nowrap transition-colors ${ativo ? 'border-gray-400 bg-gray-100 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-      {children}
-    </button>
-  )
 }
 
 export default function AlunosPage() {
@@ -44,9 +30,6 @@ function AlunosContent() {
   const [carregando, setCarregando]         = useState(true)
   const [selecionado, setSelecionado]       = useState<Aluno | null>(null)
 
-  // BUG CORRIGIDO: `selecionado` era usado dentro de `carregar` mas não estava nas deps do useCallback,
-  // causando stale closure — o bloco "Mantém o selecionado atualizado" nunca funcionava.
-  // Solução: usar uma ref para acessar o valor atual de selecionado dentro do callback sem re-criar carregar.
   const selecionadoRef = useRef(selecionado)
   useEffect(() => { selecionadoRef.current = selecionado }, [selecionado])
 
@@ -57,6 +40,7 @@ function AlunosContent() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
 
     let query = supabase
       .from('alunos')
@@ -67,13 +51,14 @@ function AlunosContent() {
 
     if (buscaDebounced.length >= 2) {
       const isMatricula = /^\d+$/.test(buscaDebounced)
-      query = isMatricula
-        ? query.eq('matricula', Number(buscaDebounced))
-        : query.ilike('nome', `%${buscaDebounced}%`)
+      if (isMatricula) {
+        query = query.eq('matricula', Number(buscaDebounced))
+      } else {
+        const termo = sanitizeBusca(buscaDebounced)
+        query = query.ilike('nome', `%${termo}%`)
+      }
     }
 
-    // BUG CORRIGIDO: filtro de série era aplicado no cliente após `limit(100)`, podendo
-    // excluir alunos de certas séries. Agora filtra no banco pelo turma_id.
     if (serie) {
       const { data: turmaIds } = await supabase
         .from('turmas')
@@ -109,7 +94,7 @@ function AlunosContent() {
       if (encontrado) setSelecionado(encontrado)
     }
 
-    // Mantém o selecionado atualizado após recargas (usa ref para valor atual)
+    // Mantém o selecionado atualizado após recargas
     if (selecionadoRef.current) {
       const atualizado = lista.find(a => a.matricula === selecionadoRef.current!.matricula)
       if (atualizado) setSelecionado(atualizado)
@@ -122,10 +107,10 @@ function AlunosContent() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="grid grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Lista */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-medium">Alunos</h1>
             <span className="text-xs text-gray-500">{alunos.length} exibidos</span>
@@ -147,7 +132,17 @@ function AlunosContent() {
 
           <div className="border rounded-2xl overflow-hidden">
             {carregando ? (
-              <p className="text-center py-10 text-sm text-gray-400">Carregando...</p>
+              <div className="divide-y">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-100 rounded w-32 mb-1" />
+                      <div className="h-3 bg-gray-100 rounded w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : alunos.length === 0 ? (
               <p className="text-center py-10 text-sm text-gray-400">Nenhum aluno encontrado</p>
             ) : alunos.map(aluno => {
@@ -180,11 +175,12 @@ function AlunosContent() {
         </div>
 
         {/* Painel */}
-        <div className="col-span-3">
+        <div className="lg:col-span-3">
           {selecionado ? (
             <PainelAluno
               aluno={selecionado}
               onNovoEmprestimo={() => router.push(`/emprestimos/novo?matricula=${selecionado.matricula}`)}
+              onEditar={carregar}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">

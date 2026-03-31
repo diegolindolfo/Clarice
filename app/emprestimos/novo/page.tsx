@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { iniciais, sanitizeBusca } from '@/lib/utils'
+import { toast_success } from '@/components/Toast'
 
 type Aluno = {
   matricula: number
@@ -19,10 +21,6 @@ type Livro = {
 }
 
 type Etapa = 'aluno' | 'livro' | 'confirmar'
-
-function iniciais(nome: string) {
-  return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase()
-}
 
 // Wrapper com Suspense — obrigatório pelo Next.js para useSearchParams
 export default function NovoEmprestimoPage() {
@@ -46,15 +44,29 @@ function NovoEmprestimoForm() {
   const [erro, setErro]         = useState('')
 
   const [buscaAluno, setBuscaAluno]             = useState('')
+  const [buscaAlunoDebounced, setBuscaAlunoDebounced] = useState('')
   const [alunos, setAlunos]                     = useState<Aluno[]>([])
   const [alunoSelecionado, setAlunoSelecionado] = useState<Aluno | null>(null)
 
   const [buscaLivro, setBuscaLivro]             = useState('')
+  const [buscaLivroDebounced, setBuscaLivroDebounced] = useState('')
   const [livros, setLivros]                     = useState<Livro[]>([])
   const [livroSelecionado, setLivroSelecionado] = useState<Livro | null>(null)
 
-  // Pré-carrega aluno ou livro via query params
+  // MELHORIA: debounce para buscas de aluno e livro (antes era a cada keystroke)
   useEffect(() => {
+    const t = setTimeout(() => setBuscaAlunoDebounced(buscaAluno), 350)
+    return () => clearTimeout(t)
+  }, [buscaAluno])
+
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaLivroDebounced(buscaLivro), 350)
+    return () => clearTimeout(t)
+  }, [buscaLivro])
+
+  // CORRIGIDO: searchParams adicionado às deps do useEffect
+  useEffect(() => {
+    const supabase = createClient()
     const matriculaParam = searchParams.get('matricula')
     const acervoId       = searchParams.get('acervo_id')
 
@@ -97,68 +109,79 @@ function NovoEmprestimoForm() {
           setEtapa('aluno')
         })
     }
-  }, [])
+  }, [searchParams])
 
-  async function buscarAlunos(termo: string) {
-    setBuscaAluno(termo)
-    if (termo.length < 2) { setAlunos([]); return }
+  // Busca de alunos com debounce
+  useEffect(() => {
+    if (buscaAlunoDebounced.length < 2) { setAlunos([]); return }
 
-    const isMatricula = /^\d+$/.test(termo)
-    const { data } = await supabase
-      .from('alunos')
-      .select('matricula, nome, turmas(nome)')
-      .eq('ativo', true)
-      .or(isMatricula ? `matricula.eq.${termo}` : `nome.ilike.%${termo}%`)
-      .limit(6)
+    async function buscar() {
+      const supabase = createClient()
+      const termo = sanitizeBusca(buscaAlunoDebounced)
+      const isMatricula = /^\d+$/.test(buscaAlunoDebounced)
+      const { data } = await supabase
+        .from('alunos')
+        .select('matricula, nome, turmas(nome)')
+        .eq('ativo', true)
+        .or(isMatricula ? `matricula.eq.${buscaAlunoDebounced}` : `nome.ilike.%${termo}%`)
+        .limit(6)
 
-    if (!data) return
+      if (!data) return
 
-    const matriculas = data.map(a => a.matricula)
-    const { data: atrasados } = await supabase
-      .from('vw_emprestimos_atrasados')
-      .select('matricula')
-      .in('matricula', matriculas)
+      const matriculas = data.map(a => a.matricula)
+      const { data: atrasados } = await supabase
+        .from('vw_emprestimos_atrasados')
+        .select('matricula')
+        .in('matricula', matriculas)
 
-    const atrasadosSet = new Set(atrasados?.map(a => a.matricula) ?? [])
+      const atrasadosSet = new Set(atrasados?.map(a => a.matricula) ?? [])
 
-    setAlunos(data.map(a => ({
-      matricula: a.matricula,
-      nome: a.nome,
-      turma: (a.turmas as any)?.nome ?? '',
-      em_atraso: atrasadosSet.has(a.matricula),
-    })))
-  }
+      setAlunos(data.map(a => ({
+        matricula: a.matricula,
+        nome: a.nome,
+        turma: (a.turmas as any)?.nome ?? '',
+        em_atraso: atrasadosSet.has(a.matricula),
+      })))
+    }
+    buscar()
+  }, [buscaAlunoDebounced])
 
-  async function buscarLivros(termo: string) {
-    setBuscaLivro(termo)
-    if (termo.length < 2) { setLivros([]); return }
+  // Busca de livros com debounce
+  useEffect(() => {
+    if (buscaLivroDebounced.length < 2) { setLivros([]); return }
 
-    const { data } = await supabase
-      .from('acervo')
-      .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
-      .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`)
-      .eq('livros_exemplares.disponivel', true)
-      .limit(8)
+    async function buscar() {
+      const supabase = createClient()
+      const termo = sanitizeBusca(buscaLivroDebounced)
+      const { data } = await supabase
+        .from('acervo')
+        .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
+        .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`)
+        .eq('livros_exemplares.disponivel', true)
+        .limit(8)
 
-    if (!data) return
+      if (!data) return
 
-    const exemplares: Livro[] = data.flatMap(obra =>
-      (obra.livros_exemplares as any[]).map(ex => ({
-        exemplar_id: ex.id,
-        tombo: ex.tombo,
-        titulo: obra.titulo,
-        autor: obra.autor ?? '',
-        disponivel: ex.disponivel,
-      }))
-    )
-    setLivros(exemplares)
-  }
+      const exemplares: Livro[] = data.flatMap(obra =>
+        (obra.livros_exemplares as any[]).map(ex => ({
+          exemplar_id: ex.id,
+          tombo: ex.tombo,
+          titulo: obra.titulo,
+          autor: obra.autor ?? '',
+          disponivel: ex.disponivel,
+        }))
+      )
+      setLivros(exemplares)
+    }
+    buscar()
+  }, [buscaLivroDebounced])
 
   async function confirmar() {
     if (!alunoSelecionado || !livroSelecionado) return
     setSalvando(true)
     setErro('')
 
+    const supabase = createClient()
     const { error } = await supabase.from('emprestimos').insert({
       exemplar_id:     livroSelecionado.exemplar_id,
       aluno_matricula: alunoSelecionado.matricula,
@@ -169,6 +192,7 @@ function NovoEmprestimoForm() {
 
     setSalvando(false)
     if (error) { setErro(error.message); return }
+    toast_success('Empréstimo registrado com sucesso!')
     router.push('/emprestimos')
   }
 
@@ -209,7 +233,7 @@ function NovoEmprestimoForm() {
             placeholder="Ex: Maria Silva ou 20240021"
             className="w-full mb-3"
             value={buscaAluno}
-            onChange={e => buscarAlunos(e.target.value)}
+            onChange={e => setBuscaAluno(e.target.value)}
           />
           <div className="flex flex-col gap-2">
             {alunos.map(aluno => (
@@ -231,7 +255,7 @@ function NovoEmprestimoForm() {
                 }
               </button>
             ))}
-            {buscaAluno.length >= 2 && alunos.length === 0 && (
+            {buscaAluno.length >= 2 && buscaAlunoDebounced.length >= 2 && alunos.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-4">Nenhum aluno encontrado</p>
             )}
           </div>
@@ -263,7 +287,7 @@ function NovoEmprestimoForm() {
             placeholder="Ex: Dom Casmurro ou Machado"
             className="w-full mb-3"
             value={buscaLivro}
-            onChange={e => buscarLivros(e.target.value)}
+            onChange={e => setBuscaLivro(e.target.value)}
           />
           <div className="flex flex-col gap-2">
             {livros.map(livro => (
@@ -272,7 +296,7 @@ function NovoEmprestimoForm() {
                 onClick={() => { setLivroSelecionado(livro); setEtapa('confirmar'); setLivros([]); setBuscaLivro('') }}
                 className="flex items-center gap-3 p-3 border rounded-xl text-left hover:bg-gray-50 transition-colors"
               >
-                <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-sm flex-shrink-0">📗</div>
+                <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-sm flex-shrink-0" aria-hidden="true">📗</div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{livro.titulo}</p>
                   <p className="text-xs text-gray-400">{livro.autor}{livro.tombo ? ` · tombo #${livro.tombo}` : ''}</p>
@@ -280,7 +304,7 @@ function NovoEmprestimoForm() {
                 <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">Disponível</span>
               </button>
             ))}
-            {buscaLivro.length >= 2 && livros.length === 0 && (
+            {buscaLivro.length >= 2 && buscaLivroDebounced.length >= 2 && livros.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-4">Nenhum exemplar disponível</p>
             )}
           </div>

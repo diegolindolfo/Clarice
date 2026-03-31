@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt, corAvatar, iniciais } from '@/lib/utils'
+import ModalEditarAluno from '@/components/ModalEditarAluno'
 
 type Aluno = { matricula: number; nome: string; turma: string; email: string | null; em_atraso: boolean; foto_url?: string | null }
 
@@ -12,35 +14,22 @@ type Emprestimo = {
 
 type Stats = { total: number; abertos: number; atrasados: number; devolvidos: number }
 
-const CORES = [
-  { bg: '#E6F1FB', tc: '#0C447C' }, { bg: '#EEEDFE', tc: '#3C3489' },
-  { bg: '#E1F5EE', tc: '#085041' }, { bg: '#FAEEDA', tc: '#633806' },
-  { bg: '#FAECE7', tc: '#712B13' }, { bg: '#FBEAF0', tc: '#72243E' },
-]
-function corAvatar(m: number) { return CORES[m % CORES.length] }
-function iniciais(nome: string) { return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase() }
-
 const STATUS_STYLE: Record<string, string> = {
   EMPRESTADO: 'bg-blue-50 text-blue-800', RENOVADO: 'bg-purple-50 text-purple-800',
   DEVOLVIDO: 'bg-green-50 text-green-800', ATRASADO: 'bg-red-50 text-red-800',
 }
 
-// BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC midnight → um dia antes no Brasil (UTC-3).
-// Solução: extrair componentes da string e construir com fuso local.
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
-}
-
-export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno; onNovoEmprestimo: () => void }) {
+export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { aluno: Aluno; onNovoEmprestimo: () => void; onEditar?: () => void }) {
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [stats, setStats]             = useState<Stats>({ total: 0, abertos: 0, atrasados: 0, devolvidos: 0 })
   const [carregando, setCarregando]   = useState(true)
   const [filtro, setFiltro]           = useState<'todos' | 'abertos' | 'historico'>('todos')
+  const [editando, setEditando]       = useState(false)
 
   useEffect(() => { setCarregando(true); carregar() }, [aluno.matricula])
 
   async function carregar() {
+    const supabase = createClient()
     const { data } = await supabase
       .from('vw_painel_aluno').select('*').eq('matricula', aluno.matricula).order('data_saida', { ascending: false })
 
@@ -83,12 +72,18 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
           {aluno.email && <p className="text-xs text-gray-400 mt-0.5">{aluno.email}</p>}
         </div>
         {aluno.em_atraso && <span className="text-xs font-medium bg-red-50 text-red-800 px-3 py-1 rounded-full">Atrasado</span>}
+        <button
+          onClick={() => setEditando(true)}
+          className="text-xs text-gray-400 hover:text-gray-700 border rounded-lg px-2.5 py-1 transition-colors"
+        >
+          ✎ Editar
+        </button>
       </div>
 
       {carregando ? (
         <div className="h-20 bg-gray-50 rounded-xl animate-pulse mb-5" />
       ) : (
-        <div className="grid grid-cols-4 gap-2 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
           {[
             { label: 'Total',      valor: stats.total,     cor: '' },
             { label: 'Em aberto',  valor: stats.abertos,   cor: '' },
@@ -118,7 +113,7 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
           <p className="text-center py-8 text-sm text-gray-400">Nenhum empréstimo nesta categoria</p>
         ) : listaFiltrada.map((e, i) => (
           <div key={e.emprestimo_id} className={`flex items-center gap-3 px-4 py-3 text-sm ${i < listaFiltrada.length - 1 ? 'border-b' : ''} ${e.em_atraso ? 'bg-red-50/40' : ''}`}>
-            <div className="w-8 h-11 rounded bg-gray-100 flex items-center justify-center text-base flex-shrink-0">📖</div>
+            <div className="w-8 h-11 rounded bg-gray-100 flex items-center justify-center text-base flex-shrink-0" aria-hidden="true">📖</div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{e.titulo}</p>
               <p className="text-xs text-gray-400 truncate">{e.autor}</p>
@@ -147,6 +142,14 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
       <button onClick={onNovoEmprestimo} className="w-full border rounded-xl py-2.5 text-sm hover:bg-gray-50 transition-colors">
         Novo empréstimo para este aluno →
       </button>
+
+      {editando && (
+        <ModalEditarAluno
+          aluno={aluno}
+          onFechar={() => setEditando(false)}
+          onSalvar={() => { setEditando(false); onEditar?.() }}
+        />
+      )}
     </div>
   )
 }

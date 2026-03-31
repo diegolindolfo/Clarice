@@ -1,9 +1,12 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+import { fmt, sanitizeBusca } from '@/lib/utils'
 import ModalDevolucao from '@/components/ModalDevolucao'
 import ModalRenovacao from '@/components/ModalRenovacao'
+import { toast_success, toast_error } from '@/components/Toast'
 import { exportarAtrasadosPDF, type AtrasadoPDF } from '@/lib/exportarAtrasadosPDF'
 
 type Emprestimo = {
@@ -21,7 +24,6 @@ type Emprestimo = {
   em_atraso: boolean
 }
 
-// BUG CORRIGIDO: contadores globais separados da lista filtrada
 type GlobalCounts = { ativos: number; renovados: number; atrasados: number }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -31,25 +33,43 @@ const STATUS_STYLE: Record<string, string> = {
   ATRASADO:   'bg-red-50 text-red-800',
 }
 
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
+const POR_PAG = 30
+
+// Skeleton para linhas da tabela
+function SkeletonRow() {
+  return (
+    <tr className="border-t">
+      <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-28" /><div className="h-3 bg-gray-100 rounded animate-pulse w-20 mt-1" /></td>
+      <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-32" /></td>
+      <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-16" /></td>
+      <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded animate-pulse w-16" /></td>
+      <td className="px-4 py-3"><div className="h-5 bg-gray-100 rounded-full animate-pulse w-20" /></td>
+      <td className="px-4 py-3"><div className="h-6 bg-gray-100 rounded animate-pulse w-16" /></td>
+    </tr>
+  )
 }
 
 export default function EmprestimosPage() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto p-6" />}>
+      <EmprestimosContent />
+    </Suspense>
+  )
+}
+
+function EmprestimosContent() {
+  const searchParams = useSearchParams()
   const [emprestimos, setEmprestimos]       = useState<Emprestimo[]>([])
+  const [total, setTotal]                   = useState(0)
+  const [pagina, setPagina]                 = useState(1)
   const [busca, setBusca]                   = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
-  const [filtroStatus, setFiltroStatus]     = useState('')
+  const [filtroStatus, setFiltroStatus]     = useState(searchParams.get('status') ?? '')
   const [carregando, setCarregando]         = useState(true)
   const [exportando, setExportando]         = useState(false)
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
   const [modalRenovacao, setModalRenovacao] = useState<Emprestimo | null>(null)
-  const [erroExport, setErroExport]         = useState('')
 
-  // BUG CORRIGIDO: contadores globais agora vêm de queries independentes do filtro de busca/status.
-  // Antes, eram calculados sobre os 200 registros filtrados — ao filtrar por "DEVOLVIDO",
-  // "Atrasados" aparecia como 0, o que é enganoso.
   const [global, setGlobal] = useState<GlobalCounts>({ ativos: 0, renovados: 0, atrasados: 0 })
 
   useEffect(() => {
@@ -57,14 +77,16 @@ export default function EmprestimosPage() {
     return () => clearTimeout(t)
   }, [busca])
 
-  // BUG CORRIGIDO: `carregar` agora está declarado antes de ser referenciado nos useEffects.
+  useEffect(() => { setPagina(1) }, [buscaDebounced, filtroStatus])
+
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
     let query = supabase
       .from('vw_painel_aluno')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('data_saida', { ascending: false })
-      .limit(200)
+      .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
 
     if (filtroStatus) {
       if (filtroStatus === 'ATRASADO') {
@@ -74,17 +96,22 @@ export default function EmprestimosPage() {
       }
     }
     if (buscaDebounced) {
+      const termo = sanitizeBusca(buscaDebounced)
       query = query.or(
-        `aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`
+        `aluno_nome.ilike.%${termo}%,titulo.ilike.%${termo}%`
       )
     }
 
-    const { data, error } = await query
-    if (!error) setEmprestimos(data ?? [])
+    const { data, count, error } = await query
+    if (!error) {
+      setEmprestimos(data ?? [])
+      setTotal(count ?? 0)
+    }
     setCarregando(false)
-  }, [buscaDebounced, filtroStatus])
+  }, [buscaDebounced, filtroStatus, pagina])
 
   const carregarGlobal = useCallback(async () => {
+    const supabase = createClient()
     const [r1, r2, r3] = await Promise.all([
       supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'EMPRESTADO'),
       supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'RENOVADO'),
@@ -102,8 +129,8 @@ export default function EmprestimosPage() {
 
   async function exportarPDF() {
     setExportando(true)
-    setErroExport('')
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('vw_emprestimos_atrasados')
         .select('*')
@@ -111,21 +138,33 @@ export default function EmprestimosPage() {
 
       if (error) throw error
       if (!data || data.length === 0) {
-        setErroExport('Nenhum empréstimo atrasado no momento.')
+        toast_error('Nenhum empréstimo atrasado no momento.')
         return
       }
       await exportarAtrasadosPDF(data as AtrasadoPDF[])
+      toast_success('PDF de atrasados gerado com sucesso!')
     } catch (e: any) {
-      setErroExport(e.message ?? 'Erro ao gerar PDF.')
+      toast_error(e.message ?? 'Erro ao gerar PDF.')
     } finally {
       setExportando(false)
     }
   }
 
-  function aposModal() {
+  function aposDevolver() {
+    setModalDevolucao(null)
+    toast_success('Devolução registrada com sucesso!')
     carregar()
     carregarGlobal()
   }
+
+  function aposRenovar() {
+    setModalRenovacao(null)
+    toast_success('Empréstimo renovado com sucesso!')
+    carregar()
+    carregarGlobal()
+  }
+
+  const totalPaginas = Math.ceil(total / POR_PAG)
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -152,37 +191,27 @@ export default function EmprestimosPage() {
         </div>
       </div>
 
-      {erroExport && (
-        <div className="bg-amber-50 text-amber-800 text-sm rounded-xl px-4 py-3 mb-4">
-          {erroExport}
-        </div>
-      )}
-
-      {/* Cards de resumo — baseados em contagens globais, independentes do filtro */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Ativos</p>
-          <p className="text-2xl font-mono font-medium">{carregando ? '—' : global.ativos}</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Renovados</p>
-          <p className="text-2xl font-mono font-medium">{carregando ? '—' : global.renovados}</p>
-        </div>
-        <div className="bg-red-50 rounded-xl p-4">
-          <p className="text-xs text-red-600 mb-1">Atrasados</p>
-          <p className="text-2xl font-mono font-medium text-red-700">{carregando ? '—' : global.atrasados}</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Registros exibidos</p>
-          <p className="text-2xl font-mono font-medium">{carregando ? '—' : emprestimos.length}</p>
-        </div>
+      {/* Cards de resumo — skeleton quando carregando */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Ativos', valor: global.ativos, cor: '' },
+          { label: 'Renovados', valor: global.renovados, cor: '' },
+          { label: 'Atrasados', valor: global.atrasados, cor: 'r' },
+          { label: 'Nesta página', valor: emprestimos.length, sub: `de ${total}`, cor: '' },
+        ].map(({ label, valor, cor, sub }) => (
+          <div key={label} className={`rounded-xl p-4 ${cor === 'r' ? 'bg-red-50' : 'bg-gray-50'}`}>
+            <p className={`text-xs mb-1 ${cor === 'r' ? 'text-red-600' : 'text-gray-500'}`}>{label}</p>
+            <p className={`text-2xl font-mono font-medium ${cor === 'r' ? 'text-red-700' : ''}`}>{valor}</p>
+            {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+          </div>
+        ))}
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <input
           placeholder="Buscar aluno ou livro..."
-          className="flex-1 !h-[38px]"
+          className="flex-1 min-w-48 !h-[38px]"
           value={busca}
           onChange={e => setBusca(e.target.value)}
         />
@@ -207,9 +236,9 @@ export default function EmprestimosPage() {
         )}
       </div>
 
-      {/* Tabela */}
-      <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Tabela — responsiva com scroll horizontal */}
+      <div className="border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
             <tr>
               {['Aluno', 'Livro', 'Saída', 'Prazo', 'Status', 'Ação'].map(h => (
@@ -219,7 +248,9 @@ export default function EmprestimosPage() {
           </thead>
           <tbody>
             {carregando ? (
-              <tr><td colSpan={6} className="text-center py-12 text-gray-400">Carregando...</td></tr>
+              <>
+                {[...Array(6)].map((_, i) => <SkeletonRow key={i} />)}
+              </>
             ) : emprestimos.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-12 text-gray-400">Nenhum empréstimo encontrado</td></tr>
             ) : emprestimos.map(e => (
@@ -272,6 +303,27 @@ export default function EmprestimosPage() {
         </table>
       </div>
 
+      {/* Paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm text-gray-500 mt-4">
+          <button
+            onClick={() => setPagina(p => Math.max(1, p - 1))}
+            disabled={pagina === 1}
+            className="border rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Anterior
+          </button>
+          <span>Página {pagina} de {totalPaginas}</span>
+          <button
+            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+            disabled={pagina === totalPaginas}
+            className="border rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Próxima →
+          </button>
+        </div>
+      )}
+
       {/* Modais */}
       {modalDevolucao && (
         <ModalDevolucao
@@ -285,7 +337,7 @@ export default function EmprestimosPage() {
             em_atraso: modalDevolucao.em_atraso,
           }}
           onFechar={() => setModalDevolucao(null)}
-          onConfirmar={() => { setModalDevolucao(null); aposModal() }}
+          onConfirmar={aposDevolver}
         />
       )}
 
@@ -300,7 +352,7 @@ export default function EmprestimosPage() {
             renovado_em: modalRenovacao.renovado_em,
           }}
           onFechar={() => setModalRenovacao(null)}
-          onConfirmar={() => { setModalRenovacao(null); aposModal() }}
+          onConfirmar={aposRenovar}
         />
       )}
     </div>
