@@ -110,11 +110,22 @@ export default function DetalheAcervoPage() {
         </table>
       </div>
 
-      {disponiveis > 0 && (
-        <button onClick={() => router.push(`/emprestimos/novo?acervo_id=${livro.id}`)} className="w-full bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 transition-colors">
-          Emprestar um exemplar deste livro
+      <div className="flex gap-3">
+        <button
+          onClick={() => router.push(`/acervo/${livro.id}/editar`)}
+          className="flex-1 border rounded-xl py-3 text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          ✎ Editar título
         </button>
-      )}
+        {disponiveis > 0 && (
+          <button
+            onClick={() => router.push(`/emprestimos/novo?acervo_id=${livro.id}`)}
+            className="flex-[2] bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 transition-colors"
+          >
+            Emprestar um exemplar deste livro
+          </button>
+        )}
+      </div>
     </div>
   )
 }

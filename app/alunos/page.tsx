@@ -180,6 +180,7 @@ function AlunosContent() {
             <PainelAluno
               aluno={selecionado}
               onNovoEmprestimo={() => router.push(`/emprestimos/novo?matricula=${selecionado.matricula}`)}
+              onEditar={carregar}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">

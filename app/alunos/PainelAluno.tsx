@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { fmt, corAvatar, iniciais } from '@/lib/utils'
+import ModalEditarAluno from '@/components/ModalEditarAluno'
 
 type Aluno = { matricula: number; nome: string; turma: string; email: string | null; em_atraso: boolean; foto_url?: string | null }
 
@@ -18,11 +19,12 @@ const STATUS_STYLE: Record<string, string> = {
   DEVOLVIDO: 'bg-green-50 text-green-800', ATRASADO: 'bg-red-50 text-red-800',
 }
 
-export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno; onNovoEmprestimo: () => void }) {
+export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { aluno: Aluno; onNovoEmprestimo: () => void; onEditar?: () => void }) {
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [stats, setStats]             = useState<Stats>({ total: 0, abertos: 0, atrasados: 0, devolvidos: 0 })
   const [carregando, setCarregando]   = useState(true)
   const [filtro, setFiltro]           = useState<'todos' | 'abertos' | 'historico'>('todos')
+  const [editando, setEditando]       = useState(false)
 
   useEffect(() => { setCarregando(true); carregar() }, [aluno.matricula])
 
@@ -70,6 +72,12 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
           {aluno.email && <p className="text-xs text-gray-400 mt-0.5">{aluno.email}</p>}
         </div>
         {aluno.em_atraso && <span className="text-xs font-medium bg-red-50 text-red-800 px-3 py-1 rounded-full">Atrasado</span>}
+        <button
+          onClick={() => setEditando(true)}
+          className="text-xs text-gray-400 hover:text-gray-700 border rounded-lg px-2.5 py-1 transition-colors"
+        >
+          ✎ Editar
+        </button>
       </div>
 
       {carregando ? (
@@ -134,6 +142,14 @@ export default function PainelAluno({ aluno, onNovoEmprestimo }: { aluno: Aluno;
       <button onClick={onNovoEmprestimo} className="w-full border rounded-xl py-2.5 text-sm hover:bg-gray-50 transition-colors">
         Novo empréstimo para este aluno →
       </button>
+
+      {editando && (
+        <ModalEditarAluno
+          aluno={aluno}
+          onFechar={() => setEditando(false)}
+          onSalvar={() => { setEditando(false); onEditar?.() }}
+        />
+      )}
     </div>
   )
 }
