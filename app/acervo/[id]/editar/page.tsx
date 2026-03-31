@@ -1,18 +1,14 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { toast_success } from '@/components/Toast'
+import { toast_success, toast_error } from '@/components/Toast'
 
-type Exemplar = { key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string }
-type Forma    = { titulo: string; autor: string; editora: string; cdd: string; descricao: string; tipo: string; genero: string; categoria: string; serie: string; imagem_url: string }
+type Exemplar     = { id: string; key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string; isNew?: boolean }
+type Forma        = { titulo: string; autor: string; editora: string; cdd: string; descricao: string; tipo: string; genero: string; categoria: string; serie: string; imagem_url: string }
 
-const TIPOS      = ['literatura', 'paradidático', 'técnico', 'didático', 'filosofia', 'outro']
-const AQUISICOES = ['pnld', 'doação', 'compra', 'gestão', 'permuta', 'outro']
-
-function novoExemplar(): Exemplar {
-  return { key: crypto.randomUUID(), tombo: '', volume: '', edicao: '', aquisicao: 'compra', data_cadastro: new Date().toISOString().split('T')[0] }
-}
+const TIPOS       = ['literatura', 'paradidático', 'técnico', 'didático', 'filosofia', 'outro']
+const AQUISICOES  = ['pnld', 'doação', 'compra', 'gestão', 'permuta', 'outro']
 
 function Campo({ label, erro, children }: { label: string; erro?: string; children: React.ReactNode }) {
   return (
@@ -34,17 +30,58 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
   )
 }
 
-export default function NovoTituloPage() {
+export default function EditarAcervoPage() {
+  const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const [salvando, setSalvando] = useState(false)
-  const [erros, setErros]       = useState<Record<string, string>>({})
 
-  const [forma, setForma] = useState<Forma>({
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando]     = useState(false)
+  const [erros, setErros]           = useState<Record<string, string>>({})
+  const [removidos, setRemovidos]   = useState<string[]>([])
+
+  const [forma, setForma]           = useState<Forma>({
     titulo: '', autor: '', editora: '', cdd: '', descricao: '',
     tipo: 'literatura', genero: '', categoria: '', serie: '', imagem_url: '',
   })
+  const [exemplares, setExemplares] = useState<Exemplar[]>([])
 
-  const [exemplares, setExemplares] = useState<Exemplar[]>([novoExemplar()])
+  useEffect(() => {
+    async function carregar() {
+      const supabase = createClient()
+      const [{ data: livro }, { data: exs }] = await Promise.all([
+        supabase.from('acervo').select('*').eq('id', id).single(),
+        supabase.from('livros_exemplares').select('*').eq('acervo_id', id).order('tombo'),
+      ])
+
+      if (!livro) { router.replace('/acervo'); return }
+
+      setForma({
+        titulo:     livro.titulo     ?? '',
+        autor:      livro.autor      ?? '',
+        editora:    livro.editora    ?? '',
+        cdd:        livro.cdd        ?? '',
+        descricao:  livro.descricao  ?? '',
+        tipo:       livro.tipo       ?? 'literatura',
+        genero:     livro.genero     ?? '',
+        categoria:  livro.categoria  ?? '',
+        serie:      livro.serie      ?? '',
+        imagem_url: livro.imagem_url ?? '',
+      })
+
+      setExemplares((exs ?? []).map(ex => ({
+        id:             ex.id,
+        key:            ex.id,
+        tombo:          ex.tombo?.toString() ?? '',
+        volume:         ex.volume ?? '',
+        edicao:         ex.edicao ?? '',
+        aquisicao:      ex.aquisicao ?? 'compra',
+        data_cadastro:  ex.data_cadastro?.split('T')[0] ?? '',
+      })))
+
+      setCarregando(false)
+    }
+    carregar()
+  }, [id, router])
 
   function setField(campo: keyof Forma, valor: string) {
     setForma(f => ({ ...f, [campo]: valor }))
@@ -55,11 +92,27 @@ export default function NovoTituloPage() {
     setExemplares(list => list.map(ex => ex.key === key ? { ...ex, [campo]: valor } : ex))
   }
 
+  function addExemplar() {
+    setExemplares(l => [...l, {
+      id: '', key: crypto.randomUUID(), tombo: '', volume: '', edicao: '',
+      aquisicao: 'compra', data_cadastro: new Date().toISOString().split('T')[0], isNew: true,
+    }])
+  }
+
+  function removerExemplar(ex: Exemplar) {
+    if (ex.isNew) {
+      setExemplares(l => l.filter(e => e.key !== ex.key))
+    } else {
+      setRemovidos(r => [...r, ex.id])
+      setExemplares(l => l.filter(e => e.key !== ex.key))
+    }
+  }
+
   function validar(): boolean {
     const novosErros: Record<string, string> = {}
     if (!forma.titulo.trim()) novosErros.titulo = 'Título é obrigatório'
     const tombos = exemplares.map(e => e.tombo).filter(Boolean)
-    if (tombos.length !== new Set(tombos).size) novosErros.tombos = 'Há tombos duplicados entre os exemplares'
+    if (tombos.length !== new Set(tombos).size) novosErros.tombos = 'Há tombos duplicados'
     setErros(novosErros)
     return Object.keys(novosErros).length === 0
   }
@@ -69,9 +122,11 @@ export default function NovoTituloPage() {
     setSalvando(true)
 
     const supabase = createClient()
-    const { data: acervoData, error: acervoError } = await supabase
+
+    // 1. Atualizar o título
+    const { error: acervoError } = await supabase
       .from('acervo')
-      .insert({
+      .update({
         titulo:     forma.titulo.trim(),
         autor:      forma.autor.trim()     || null,
         editora:    forma.editora.trim()   || null,
@@ -83,49 +138,80 @@ export default function NovoTituloPage() {
         serie:      forma.serie.trim()     || null,
         imagem_url: forma.imagem_url.trim()|| null,
       })
-      .select('id')
-      .single()
+      .eq('id', id)
 
-    if (acervoError || !acervoData) {
-      setErros({ geral: acervoError?.message ?? 'Erro ao salvar título' })
+    if (acervoError) {
+      setErros({ geral: acervoError.message })
       setSalvando(false)
       return
     }
 
-    const { error: exemplarError } = await supabase.from('livros_exemplares').insert(
-      exemplares.map(ex => ({
-        acervo_id:     acervoData.id,
+    // 2. Remover exemplares deletados
+    if (removidos.length > 0) {
+      const { error } = await supabase.from('livros_exemplares').delete().in('id', removidos)
+      if (error) {
+        toast_error(`Erro ao remover exemplares: ${error.message}`)
+      }
+    }
+
+    // 3. Atualizar exemplares existentes
+    const existentes = exemplares.filter(ex => !ex.isNew && ex.id)
+    for (const ex of existentes) {
+      await supabase.from('livros_exemplares').update({
         tombo:         ex.tombo ? Number(ex.tombo) : null,
         volume:        ex.volume.trim()  || null,
         edicao:        ex.edicao.trim()  || null,
         aquisicao:     ex.aquisicao      || null,
         data_cadastro: ex.data_cadastro  || null,
-        disponivel:    true,
-      }))
-    )
-
-    setSalvando(false)
-    if (exemplarError) {
-      setErros({ geral: `Título salvo, mas erro nos exemplares: ${exemplarError.message}` })
-      return
+      }).eq('id', ex.id)
     }
 
-    toast_success(`Título "${forma.titulo}" salvo com ${exemplares.length} exemplar${exemplares.length !== 1 ? 'es' : ''}!`)
-    router.push(`/acervo/${acervoData.id}`)
+    // 4. Inserir novos exemplares
+    const novos = exemplares.filter(ex => ex.isNew)
+    if (novos.length > 0) {
+      const { error } = await supabase.from('livros_exemplares').insert(
+        novos.map(ex => ({
+          acervo_id:     id,
+          tombo:         ex.tombo ? Number(ex.tombo) : null,
+          volume:        ex.volume.trim()  || null,
+          edicao:        ex.edicao.trim()  || null,
+          aquisicao:     ex.aquisicao      || null,
+          data_cadastro: ex.data_cadastro  || null,
+          disponivel:    true,
+        }))
+      )
+      if (error) {
+        toast_error(`Erro ao adicionar exemplares: ${error.message}`)
+      }
+    }
+
+    setSalvando(false)
+    toast_success('Título atualizado com sucesso!')
+    router.push(`/acervo/${id}`)
+  }
+
+  if (carregando) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="h-6 bg-gray-100 rounded w-40 mb-6 animate-pulse" />
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />)}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800">← Voltar</button>
-        <h1 className="text-xl font-medium">Novo título</h1>
+        <h1 className="text-xl font-medium">Editar título</h1>
       </div>
 
       {erros.geral && <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3 mb-5">{erros.geral}</div>}
 
       <Secao titulo="Identificação">
         <div className="flex gap-4 mb-4">
-          {/* Capa */}
           <div className="flex-shrink-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Capa</label>
             {forma.imagem_url ? (
@@ -172,17 +258,32 @@ export default function NovoTituloPage() {
 
       <Secao titulo={`Exemplares físicos (${exemplares.length})`}>
         {erros.tombos && <p className="text-xs text-red-600 mb-3">{erros.tombos}</p>}
+
+        {removidos.length > 0 && (
+          <div className="bg-amber-50 text-amber-800 text-xs rounded-lg px-3 py-2 mb-3">
+            {removidos.length} exemplar{removidos.length !== 1 ? 'es' : ''} será{removidos.length !== 1 ? 'ão' : ''} removido{removidos.length !== 1 ? 's' : ''} ao salvar.
+            <button onClick={() => { setRemovidos([]); /* Reload needed */ }} className="ml-2 underline">Desfazer</button>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 mb-3">
           {exemplares.map((ex, i) => (
-            <div key={ex.key} className="bg-gray-50 rounded-xl p-3">
+            <div key={ex.key} className={`rounded-xl p-3 ${ex.isNew ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-gray-500">Exemplar {i + 1}</span>
-                {exemplares.length > 1 && (
-                  <button onClick={() => setExemplares(l => l.filter(e => e.key !== ex.key))} className="text-xs text-gray-400 hover:text-red-600">Remover</button>
-                )}
+                <span className="text-xs font-medium text-gray-500">
+                  {ex.isNew ? '✦ Novo exemplar' : `Exemplar ${i + 1}`}
+                </span>
+                <button
+                  onClick={() => removerExemplar(ex)}
+                  className="text-xs text-gray-400 hover:text-red-600 transition-colors"
+                >
+                  Remover
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-2">
-                <Campo label="Tombo (nº físico)"><input placeholder="Ex: 41" className="w-full font-mono bg-white" value={ex.tombo} onChange={e => setExemplarField(ex.key, 'tombo', e.target.value)} /></Campo>
+                <Campo label="Tombo (nº físico)">
+                  <input placeholder="Ex: 41" className={`w-full font-mono ${ex.isNew ? 'bg-white' : 'bg-white'}`} value={ex.tombo} onChange={e => setExemplarField(ex.key, 'tombo', e.target.value)} />
+                </Campo>
                 <Campo label="Aquisição">
                   <select className="w-full bg-white capitalize" value={ex.aquisicao} onChange={e => setExemplarField(ex.key, 'aquisicao', e.target.value)}>
                     {AQUISICOES.map(a => <option key={a} value={a} className="capitalize">{a}</option>)}
@@ -197,15 +298,25 @@ export default function NovoTituloPage() {
             </div>
           ))}
         </div>
-        <button onClick={() => setExemplares(l => [...l, novoExemplar()])} className="w-full border border-dashed rounded-xl py-2.5 text-sm text-gray-500 hover:bg-gray-50">
+
+        <button
+          onClick={addExemplar}
+          className="w-full border border-dashed rounded-xl py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+        >
           + Adicionar exemplar
         </button>
       </Secao>
 
       <div className="flex gap-3 mt-6">
-        <button onClick={() => router.back()} className="flex-1 border rounded-xl py-3 text-sm hover:bg-gray-50">Cancelar</button>
-        <button onClick={salvar} disabled={salvando} className="flex-[2] bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 disabled:opacity-50">
-          {salvando ? 'Salvando...' : `Salvar título com ${exemplares.length} exemplar${exemplares.length !== 1 ? 'es' : ''}`}
+        <button onClick={() => router.back()} className="flex-1 border rounded-xl py-3 text-sm hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button
+          onClick={salvar}
+          disabled={salvando}
+          className="flex-[2] bg-blue-800 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-900 disabled:opacity-50 transition-colors"
+        >
+          {salvando ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </div>
     </div>

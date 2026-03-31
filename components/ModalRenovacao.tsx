@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { fmt } from '@/lib/utils'
 
@@ -19,16 +19,36 @@ type Props = {
 export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Props) {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const jaRenovado = emprestimo.renovado_em !== null
 
-  // BUG CORRIGIDO: new Date(prazo_final) interpretava como UTC, causando cálculo errado do novo prazo.
   const novoPrazo = (() => {
     const [y, m, d] = emprestimo.prazo_final.split('T')[0].split('-').map(Number)
     const data = new Date(y, m - 1, d)
     data.setDate(data.getDate() + 15)
     return data.toLocaleDateString('pt-BR')
   })()
+
+  // Acessibilidade: Escape para fechar + trap de foco
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { onFechar(); return }
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    dialogRef.current?.querySelector<HTMLElement>('button')?.focus()
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onFechar])
 
   async function confirmar() {
     setSalvando(true)
@@ -45,8 +65,12 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.4)' }}
       onClick={onFechar}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Renovar empréstimo"
     >
       <div
+        ref={dialogRef}
         className="bg-white rounded-2xl border border-gray-200 p-6 w-full max-w-md"
         onClick={e => e.stopPropagation()}
       >
@@ -62,7 +86,7 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
         {jaRenovado ? (
           <>
             <div className="flex gap-3 bg-gray-50 rounded-xl p-4 mb-5">
-              <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <circle cx="8" cy="8" r="7.5" stroke="#5F5E5A" strokeWidth="1"/>
                 <rect x="7.25" y="4" width="1.5" height="5" rx="0.75" fill="#5F5E5A"/>
                 <rect x="7.25" y="10.5" width="1.5" height="1.5" rx="0.75" fill="#5F5E5A"/>

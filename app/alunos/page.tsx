@@ -132,7 +132,17 @@ function AlunosContent() {
 
           <div className="border rounded-2xl overflow-hidden">
             {carregando ? (
-              <p className="text-center py-10 text-sm text-gray-400">Carregando...</p>
+              <div className="divide-y">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-100 rounded w-32 mb-1" />
+                      <div className="h-3 bg-gray-100 rounded w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : alunos.length === 0 ? (
               <p className="text-center py-10 text-sm text-gray-400">Nenhum aluno encontrado</p>
             ) : alunos.map(aluno => {

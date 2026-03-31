@@ -126,7 +126,8 @@ export default function DashboardPage() {
         )
       }
 
-    } catch {
+    } catch (err) {
+      console.error('Erro ao carregar dashboard:', err)
       setErro('Erro ao carregar dados. Tente novamente.')
     } finally {
       setCarregando(false)

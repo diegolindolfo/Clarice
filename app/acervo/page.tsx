@@ -56,6 +56,7 @@ export default function AcervoPage() {
         .from('acervo')
         .select('id')
         .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
+        .limit(100)
 
       const listaIds = ids?.map(r => r.id) ?? []
       if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
@@ -110,7 +111,19 @@ export default function AcervoPage() {
       </div>
 
       {carregando ? (
-        <div className="text-center py-16 text-sm text-gray-400">Carregando...</div>
+        <div className="flex flex-col gap-3 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border rounded-2xl animate-pulse">
+              <div className="w-12 h-16 rounded-lg bg-gray-100 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="h-4 bg-gray-100 rounded w-48 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-32 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-24" />
+              </div>
+              <div className="h-5 bg-gray-100 rounded-full w-20 flex-shrink-0" />
+            </div>
+          ))}
+        </div>
       ) : livros.length === 0 ? (
         <div className="text-center py-16 text-sm text-gray-400">Nenhum título encontrado</div>
       ) : (

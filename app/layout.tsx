@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Nav from '@/components/Nav'
+import ToastContainer from '@/components/Toast'
 
 export const metadata: Metadata = {
   title: { default: 'Clarice', template: '%s — Clarice' },
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             EEEP Professor José Augusto Torres
           </p>
         </footer>
+        <ToastContainer />
       </body>
     </html>
   )

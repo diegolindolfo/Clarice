@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { iniciais, sanitizeBusca } from '@/lib/utils'
+import { toast_success } from '@/components/Toast'
 
 type Aluno = {
   matricula: number
@@ -191,6 +192,7 @@ function NovoEmprestimoForm() {
 
     setSalvando(false)
     if (error) { setErro(error.message); return }
+    toast_success('Empréstimo registrado com sucesso!')
     router.push('/emprestimos')
   }
 
