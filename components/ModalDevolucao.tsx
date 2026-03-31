@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt } from '@/lib/utils'
 
 type Props = {
   emprestimo: {
@@ -14,13 +15,6 @@ type Props = {
   }
   onFechar: () => void
   onConfirmar: () => void
-}
-
-// BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC → data aparece um dia antes no Brasil.
-// Extraímos os componentes manualmente para construir a data no fuso local.
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
 }
 
 // BUG CORRIGIDO: cálculo de diasAtraso comparava timestamp local com UTC midnight,
@@ -43,6 +37,7 @@ export default function ModalDevolucao({ emprestimo, onFechar, onConfirmar }: Pr
   async function confirmar() {
     setSalvando(true)
     setErro('')
+    const supabase = createClient()
     const { error } = await supabase.rpc('devolver_livro', { p_emprestimo_id: emprestimo.id })
     setSalvando(false)
     if (error) { setErro(error.message); return }

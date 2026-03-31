@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt, sanitizeBusca } from '@/lib/utils'
 import ModalDevolucao from '@/components/ModalDevolucao'
 import ModalRenovacao from '@/components/ModalRenovacao'
 import { exportarAtrasadosPDF, type AtrasadoPDF } from '@/lib/exportarAtrasadosPDF'
@@ -21,7 +22,6 @@ type Emprestimo = {
   em_atraso: boolean
 }
 
-// BUG CORRIGIDO: contadores globais separados da lista filtrada
 type GlobalCounts = { ativos: number; renovados: number; atrasados: number }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -29,11 +29,6 @@ const STATUS_STYLE: Record<string, string> = {
   RENOVADO:   'bg-purple-50 text-purple-800',
   DEVOLVIDO:  'bg-green-50 text-green-800',
   ATRASADO:   'bg-red-50 text-red-800',
-}
-
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
 }
 
 export default function EmprestimosPage() {
@@ -47,9 +42,6 @@ export default function EmprestimosPage() {
   const [modalRenovacao, setModalRenovacao] = useState<Emprestimo | null>(null)
   const [erroExport, setErroExport]         = useState('')
 
-  // BUG CORRIGIDO: contadores globais agora vêm de queries independentes do filtro de busca/status.
-  // Antes, eram calculados sobre os 200 registros filtrados — ao filtrar por "DEVOLVIDO",
-  // "Atrasados" aparecia como 0, o que é enganoso.
   const [global, setGlobal] = useState<GlobalCounts>({ ativos: 0, renovados: 0, atrasados: 0 })
 
   useEffect(() => {
@@ -57,9 +49,9 @@ export default function EmprestimosPage() {
     return () => clearTimeout(t)
   }, [busca])
 
-  // BUG CORRIGIDO: `carregar` agora está declarado antes de ser referenciado nos useEffects.
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
     let query = supabase
       .from('vw_painel_aluno')
       .select('*')
@@ -74,8 +66,9 @@ export default function EmprestimosPage() {
       }
     }
     if (buscaDebounced) {
+      const termo = sanitizeBusca(buscaDebounced)
       query = query.or(
-        `aluno_nome.ilike.%${buscaDebounced}%,titulo.ilike.%${buscaDebounced}%`
+        `aluno_nome.ilike.%${termo}%,titulo.ilike.%${termo}%`
       )
     }
 
@@ -85,6 +78,7 @@ export default function EmprestimosPage() {
   }, [buscaDebounced, filtroStatus])
 
   const carregarGlobal = useCallback(async () => {
+    const supabase = createClient()
     const [r1, r2, r3] = await Promise.all([
       supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'EMPRESTADO'),
       supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'RENOVADO'),
@@ -104,6 +98,7 @@ export default function EmprestimosPage() {
     setExportando(true)
     setErroExport('')
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('vw_emprestimos_atrasados')
         .select('*')
@@ -158,8 +153,8 @@ export default function EmprestimosPage() {
         </div>
       )}
 
-      {/* Cards de resumo — baseados em contagens globais, independentes do filtro */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* Cards de resumo — responsivos */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="bg-gray-50 rounded-xl p-4">
           <p className="text-xs text-gray-500 mb-1">Ativos</p>
           <p className="text-2xl font-mono font-medium">{carregando ? '—' : global.ativos}</p>
@@ -207,9 +202,9 @@ export default function EmprestimosPage() {
         )}
       </div>
 
-      {/* Tabela */}
-      <div className="border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Tabela — responsiva com scroll horizontal */}
+      <div className="border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
             <tr>
               {['Aluno', 'Livro', 'Saída', 'Prazo', 'Status', 'Ação'].map(h => (

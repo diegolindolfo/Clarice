@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 const links = [
   { href: '/dashboard',   label: 'Dashboard' },
@@ -17,12 +17,14 @@ export default function Nav() {
   const [email, setEmail] = useState<string | null>(null)
 
   useEffect(() => {
+    const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null)
     })
   }, [])
 
   async function sair() {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()

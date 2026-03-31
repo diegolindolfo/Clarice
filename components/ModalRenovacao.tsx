@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt } from '@/lib/utils'
 
 type Props = {
   emprestimo: {
@@ -15,12 +16,6 @@ type Props = {
   onConfirmar: () => void
 }
 
-// BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC → data aparece um dia antes no Brasil.
-function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
-}
-
 export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Props) {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -28,8 +23,6 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
   const jaRenovado = emprestimo.renovado_em !== null
 
   // BUG CORRIGIDO: new Date(prazo_final) interpretava como UTC, causando cálculo errado do novo prazo.
-  // Ex: prazo "2026-01-15" virava 14/01 às 21h no Brasil → +15 dias resultava em 29/01 em vez de 30/01.
-  // Agora extraímos os componentes da string para construir a data no fuso local.
   const novoPrazo = (() => {
     const [y, m, d] = emprestimo.prazo_final.split('T')[0].split('-').map(Number)
     const data = new Date(y, m - 1, d)
@@ -40,6 +33,7 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
   async function confirmar() {
     setSalvando(true)
     setErro('')
+    const supabase = createClient()
     const { error } = await supabase.rpc('renovar_emprestimo', { p_id: emprestimo.id })
     setSalvando(false)
     if (error) { setErro(error.message); return }

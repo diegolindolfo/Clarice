@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt, CORES_AVATAR, corAvatar, iniciais } from '@/lib/utils'
 
 type Resumo = {
   emprestados: number; renovados: number; atrasados: number
@@ -11,20 +12,6 @@ type LivroTop         = { titulo: string; autor: string; total: number }
 type AtrasadoPorTurma = { turma: string; total: number }
 type AlunoLeitor      = { matricula: number; nome: string; turma: string; total: number }
 type Periodo          = 'mes' | 'mes_passado' | 'ano'
-
-// Avatares com as mesmas cores do painel de alunos
-const CORES = [
-  { bg: '#E6F1FB', tc: '#0C447C' }, { bg: '#EEEDFE', tc: '#3C3489' },
-  { bg: '#E1F5EE', tc: '#085041' }, { bg: '#FAEEDA', tc: '#633806' },
-  { bg: '#FAECE7', tc: '#712B13' }, { bg: '#FBEAF0', tc: '#72243E' },
-]
-function corAvatar(m: number) { return CORES[m % CORES.length] }
-function iniciais(nome: string) { return nome.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase() }
-
-function fmt(d: string) {
-  const [y, m, day] = d.split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
-}
 
 function periodoLabel(p: Periodo) {
   if (p === 'mes') {
@@ -62,6 +49,7 @@ export default function DashboardPage() {
     setCarregando(true)
     setErro('')
     try {
+      const supabase = createClient()
       const agora = new Date()
       const ini   = (y: number, m: number, d: number) => new Date(y, m, d).toISOString().split('T')[0]
       const hoje  = ini(agora.getFullYear(), agora.getMonth(), agora.getDate())
@@ -76,13 +64,19 @@ export default function DashboardPage() {
         ? ini(agora.getFullYear(), agora.getMonth(), 0)
         : hoje
 
-      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
+      // MELHORIA: todas as queries agora rodam em paralelo num único Promise.all
+      const [r1, r2, r3, r4, r5, r6, empTurma, empLivros, atrasTurma, empAlunos] = await Promise.all([
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'EMPRESTADO'),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'RENOVADO'),
         supabase.from('vw_emprestimos_atrasados').select('*', { count: 'exact', head: true }),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'DEVOLVIDO').gte('data_saida', dataInicio).lte('data_saida', dataFim),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).gte('data_saida', dataInicio).lte('data_saida', dataFim),
         supabase.from('alunos').select('*', { count: 'exact', head: true }).eq('ativo', true),
+        // Queries que antes eram sequenciais:
+        supabase.from('vw_painel_aluno').select('turma').gte('data_saida', dataInicio).lte('data_saida', dataFim),
+        supabase.from('vw_painel_aluno').select('titulo, autor').gte('data_saida', dataInicio).lte('data_saida', dataFim),
+        supabase.from('vw_emprestimos_atrasados').select('turma'),
+        supabase.from('vw_painel_aluno').select('matricula, aluno_nome, turma').gte('data_saida', dataInicio).lte('data_saida', dataFim),
       ])
 
       setResumo({
@@ -92,22 +86,16 @@ export default function DashboardPage() {
       })
 
       // Por turma
-      const { data: empTurma } = await supabase
-        .from('vw_painel_aluno').select('turma').gte('data_saida', dataInicio).lte('data_saida', dataFim)
-
-      if (empTurma) {
+      if (empTurma.data) {
         const cont: Record<string, number> = {}
-        empTurma.forEach(({ turma }) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
+        empTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
         setPorTurma(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total).slice(0, 8))
       }
 
       // Livros top
-      const { data: empLivros } = await supabase
-        .from('vw_painel_aluno').select('titulo, autor').gte('data_saida', dataInicio).lte('data_saida', dataFim)
-
-      if (empLivros) {
+      if (empLivros.data) {
         const cont: Record<string, { autor: string; total: number }> = {}
-        empLivros.forEach(({ titulo, autor }) => {
+        empLivros.data.forEach(({ titulo, autor }: any) => {
           if (!titulo) return
           if (!cont[titulo]) cont[titulo] = { autor: autor ?? '', total: 0 }
           cont[titulo].total++
@@ -116,23 +104,16 @@ export default function DashboardPage() {
       }
 
       // Atrasados por turma (sempre tempo real)
-      const { data: atrasTurma } = await supabase.from('vw_emprestimos_atrasados').select('turma')
-      if (atrasTurma) {
+      if (atrasTurma.data) {
         const cont: Record<string, number> = {}
-        atrasTurma.forEach(({ turma }) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
+        atrasTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
         setAtrasados(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total))
       }
 
-      // ── NOVO: Alunos leitores ─────────────────────────────
-      const { data: empAlunos } = await supabase
-        .from('vw_painel_aluno')
-        .select('matricula, aluno_nome, turma')
-        .gte('data_saida', dataInicio)
-        .lte('data_saida', dataFim)
-
-      if (empAlunos) {
+      // Alunos leitores
+      if (empAlunos.data) {
         const cont: Record<number, { nome: string; turma: string; total: number }> = {}
-        empAlunos.forEach(({ matricula, aluno_nome, turma }) => {
+        empAlunos.data.forEach(({ matricula, aluno_nome, turma }: any) => {
           if (!matricula) return
           if (!cont[matricula]) cont[matricula] = { nome: aluno_nome ?? '', turma: turma ?? '', total: 0 }
           cont[matricula].total++
@@ -169,6 +150,7 @@ export default function DashboardPage() {
           {!carregando && (
             <button
               onClick={carregar}
+              aria-label="Recarregar dados"
               className="text-[12px] text-gray-300 hover:text-gray-500 px-2 py-1 rounded transition-colors"
             >
               ↻
@@ -194,7 +176,7 @@ export default function DashboardPage() {
       )}
 
       {carregando ? (
-        <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-gray-100 rounded-xl p-4 h-20 animate-pulse" />
           ))}
@@ -202,7 +184,7 @@ export default function DashboardPage() {
       ) : resumo && (
         <>
           {/* ── Cards de métricas ── */}
-          <div className="grid grid-cols-4 gap-3 mb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             {[
               { label: 'Empréstimos no período', valor: resumo.total_mes,                     cor: '' },
               { label: 'Pendentes de devolução', valor: resumo.emprestados + resumo.renovados, cor: '' },
@@ -217,8 +199,8 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Linha 2: Por turma + Status ── */}
-          <div className="grid grid-cols-5 gap-4 mb-4">
-            <div className="col-span-3 border border-[#e8e5e0] rounded-2xl p-5 bg-white">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+            <div className="lg:col-span-3 border border-[#e8e5e0] rounded-2xl p-5 bg-white">
               <Label>Empréstimos por turma</Label>
               {porTurma.length === 0 ? (
                 <p className="text-sm text-gray-300 py-4 text-center">Sem dados no período</p>
@@ -236,7 +218,7 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <div className="col-span-2 border border-[#e8e5e0] rounded-2xl p-5 bg-white">
+            <div className="lg:col-span-2 border border-[#e8e5e0] rounded-2xl p-5 bg-white">
               <Label>Status atual</Label>
               <div className="flex flex-col gap-2">
                 {[
@@ -255,7 +237,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── Linha 3: Livros top + Atrasados + Alunos leitores ── */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             {/* Livros mais emprestados */}
             <div className="border border-[#e8e5e0] rounded-2xl p-5 bg-white">
@@ -297,7 +279,7 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* ── NOVO: Alunos leitores ── */}
+            {/* Alunos leitores */}
             <div className="border border-[#e8e5e0] rounded-2xl p-5 bg-white">
               <Label>Alunos leitores</Label>
               {leitores.length === 0 ? (

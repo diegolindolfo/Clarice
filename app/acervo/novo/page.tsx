@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 type Exemplar = { key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string }
 type Forma    = { titulo: string; autor: string; editora: string; cdd: string; descricao: string; tipo: string; genero: string; categoria: string; serie: string; imagem_url: string }
@@ -67,6 +67,7 @@ export default function NovoTituloPage() {
     if (!validar()) return
     setSalvando(true)
 
+    const supabase = createClient()
     const { data: acervoData, error: acervoError } = await supabase
       .from('acervo')
       .insert({
@@ -128,7 +129,7 @@ export default function NovoTituloPage() {
             {forma.imagem_url ? (
               <div className="relative w-20 h-28">
                 <img src={forma.imagem_url} alt="Capa" className="w-20 h-28 object-cover rounded-xl border" />
-                <button onClick={() => setField('imagem_url', '')} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-600 rounded-full text-xs">✕</button>
+                <button onClick={() => setField('imagem_url', '')} aria-label="Remover capa" className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-600 rounded-full text-xs">✕</button>
               </div>
             ) : (
               <div className="w-20 h-28 border border-dashed rounded-xl flex flex-col items-center justify-center gap-1 text-gray-400">

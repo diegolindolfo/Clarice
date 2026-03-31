@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { fmt } from '@/lib/utils'
 
 type Acervo = {
   id: string; titulo: string; autor: string | null; editora: string | null
@@ -14,12 +15,6 @@ type Exemplar = {
   aquisicao: string | null; data_cadastro: string | null; disponivel: boolean
 }
 
-// BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC → data aparece um dia antes no Brasil.
-function fmtData(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
-}
-
 export default function DetalheAcervoPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -29,6 +24,7 @@ export default function DetalheAcervoPage() {
 
   useEffect(() => {
     async function carregar() {
+      const supabase = createClient()
       const [{ data: livroData }, { data: exemplaresData }] = await Promise.all([
         supabase.from('acervo').select('*').eq('id', id).single(),
         supabase.from('livros_exemplares').select('*').eq('acervo_id', id).order('tombo'),
@@ -85,8 +81,8 @@ export default function DetalheAcervoPage() {
 
       <h2 className="text-sm font-medium mb-3">Exemplares físicos <span className="text-gray-400 font-normal">({exemplares.length})</span></h2>
 
-      <div className="border rounded-xl overflow-hidden mb-6">
-        <table className="w-full text-sm">
+      <div className="border rounded-xl overflow-x-auto mb-6">
+        <table className="w-full text-sm min-w-[550px]">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
             <tr>
               {['Tombo', 'Volume', 'Edição', 'Aquisição', 'Cadastro', 'Status'].map(h => (
@@ -101,7 +97,7 @@ export default function DetalheAcervoPage() {
                 <td className="px-4 py-2.5 text-gray-500">{ex.volume ?? '—'}</td>
                 <td className="px-4 py-2.5 text-gray-500">{ex.edicao ?? '—'}</td>
                 <td className="px-4 py-2.5 capitalize text-gray-500">{ex.aquisicao ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-500">{ex.data_cadastro ? fmtData(ex.data_cadastro) : '—'}</td>
+                <td className="px-4 py-2.5 text-gray-500">{ex.data_cadastro ? fmt(ex.data_cadastro) : '—'}</td>
                 <td className="px-4 py-2.5">
                   {ex.disponivel
                     ? <span className="text-xs font-medium bg-green-50 text-green-800 px-2 py-0.5 rounded-full">Disponível</span>

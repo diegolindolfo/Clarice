@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
+import { sanitizeBusca } from '@/lib/utils'
+import Chip from '@/components/Chip'
 
 type Livro = {
   id: string; titulo: string; autor: string | null; tipo: string | null
@@ -18,14 +20,6 @@ function corTipo(tipo: string | null) {
     didático: '#FAEEDA', filosofia: '#E6F1FB', outro: '#F1EFE8',
   }
   return m[tipo?.toLowerCase() ?? ''] ?? '#F1EFE8'
-}
-
-function Chip({ ativo, onClick, children }: { ativo: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className={`text-xs px-4 py-1.5 rounded-full border whitespace-nowrap transition-colors ${ativo ? 'border-gray-400 bg-gray-100 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-      {children}
-    </button>
-  )
 }
 
 export default function AcervoPage() {
@@ -48,6 +42,7 @@ export default function AcervoPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
+    const supabase = createClient()
 
     let query = supabase
       .from('vw_acervo_catalogo')
@@ -56,10 +51,11 @@ export default function AcervoPage() {
       .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
 
     if (buscaDebounced.length >= 2) {
+      const termo = sanitizeBusca(buscaDebounced)
       const { data: ids } = await supabase
         .from('acervo')
         .select('id')
-        .or(`titulo.ilike.%${buscaDebounced}%,autor.ilike.%${buscaDebounced}%,cdd.ilike.%${buscaDebounced}%`)
+        .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
 
       const listaIds = ids?.map(r => r.id) ?? []
       if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
