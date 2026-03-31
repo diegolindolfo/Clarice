@@ -64,7 +64,7 @@ function EmprestimosContent() {
   const [pagina, setPagina]                 = useState(1)
   const [busca, setBusca]                   = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
-  const [filtroStatus, setFiltroStatus]     = useState(searchParams.get('status') ?? 'EMPRESTADO')
+  const [filtroStatus, setFiltroStatus]     = useState(searchParams.get('status') ?? 'EM_ABERTO')
   const [carregando, setCarregando]         = useState(true)
   const [exportando, setExportando]         = useState(false)
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
@@ -91,6 +91,8 @@ function EmprestimosContent() {
     if (filtroStatus) {
       if (filtroStatus === 'ATRASADO') {
         query = query.eq('em_atraso', true)
+      } else if (filtroStatus === 'EM_ABERTO') {
+        query = query.in('status', ['EMPRESTADO', 'RENOVADO'])
       } else {
         query = query.eq('status', filtroStatus)
       }
@@ -221,12 +223,13 @@ function EmprestimosContent() {
           className="min-w-40 !w-auto !h-[38px]"
         >
           <option value="">Todos os status</option>
+          <option value="EM_ABERTO">Em aberto</option>
           <option value="EMPRESTADO">Emprestado</option>
           <option value="RENOVADO">Renovado</option>
           <option value="ATRASADO">Atrasado</option>
           <option value="DEVOLVIDO">Devolvido</option>
         </select>
-        {(busca || filtroStatus) && (
+        {(busca || filtroStatus !== 'EM_ABERTO') && (
           <button
             onClick={() => { setBusca(''); setFiltroStatus('') }}
             className="text-sm text-gray-500 hover:text-gray-800 px-2 h-[38px]"

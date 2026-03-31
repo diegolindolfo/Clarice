@@ -310,7 +310,7 @@ function PainelLivro({
           ))}
       </div>
 
-      {livro.descricao && <p className="text-sm text-gray-600 leading-relaxed mb-5">{livro.descricao}</p>}
+      {livro.descricao && <DescricaoLivro texto={livro.descricao} />}
 
       {/* Exemplares */}
       <h3 className="text-sm font-medium mb-3">Exemplares <span className="text-gray-400 font-normal">({exemplares.length})</span></h3>
@@ -355,6 +355,31 @@ function PainelLivro({
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ── Descrição com "Ler mais" ── */
+
+function DescricaoLivro({ texto }: { texto: string }) {
+  const [expandido, setExpandido] = useState(false)
+  const curto = texto.length > 150
+
+  return (
+    <div className="mb-5">
+      <p
+        className={`text-sm text-gray-600 leading-relaxed ${!expandido && curto ? 'line-clamp-3' : ''}`}
+      >
+        {texto}
+      </p>
+      {curto && (
+        <button
+          onClick={() => setExpandido(!expandido)}
+          className="text-xs text-blue-700 hover:text-blue-900 mt-1 transition-colors"
+        >
+          {expandido ? '← Ler menos' : 'Ler mais →'}
+        </button>
+      )}
     </div>
   )
 }
