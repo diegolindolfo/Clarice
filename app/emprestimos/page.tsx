@@ -64,7 +64,7 @@ function EmprestimosContent() {
   const [pagina, setPagina]                 = useState(1)
   const [busca, setBusca]                   = useState('')
   const [buscaDebounced, setBuscaDebounced] = useState('')
-  const [filtroStatus, setFiltroStatus]     = useState(searchParams.get('status') ?? '')
+  const [filtroStatus, setFiltroStatus]     = useState(searchParams.get('status') ?? 'EMPRESTADO')
   const [carregando, setCarregando]         = useState(true)
   const [exportando, setExportando]         = useState(false)
   const [modalDevolucao, setModalDevolucao] = useState<Emprestimo | null>(null)
