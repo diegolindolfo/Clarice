@@ -23,7 +23,6 @@ export default function Nav() {
     supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? null)
     })
-    // Recuperar tema
     setDark(document.documentElement.getAttribute('data-theme') === 'dark')
   }, [])
 
@@ -53,7 +52,7 @@ export default function Nav() {
       <Link
         href="/dashboard"
         className="flex items-center mr-6 pr-6 border-r shrink-0"
-        style={{ fontFamily: "'DM Serif Display', serif" }}
+        style={{ fontFamily: "var(--font-dm-serif, 'DM Serif Display'), serif" }}
       >
         <span className="text-[15px] tracking-tight" style={{ color: 'var(--text-primary)' }}>Clarice</span>
       </Link>
