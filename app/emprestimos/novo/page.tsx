@@ -119,12 +119,16 @@ function NovoEmprestimoForm() {
       const supabase = createClient()
       const termo = sanitizeBusca(buscaAlunoDebounced)
       const isMatricula = /^\d+$/.test(buscaAlunoDebounced)
-      const { data } = await supabase
+      let query = supabase
         .from('alunos')
         .select('matricula, nome, turmas(nome)')
         .eq('ativo', true)
-        .or(isMatricula ? `matricula.eq.${buscaAlunoDebounced}` : `nome.ilike.%${termo}%`)
-        .limit(6)
+      if (isMatricula) {
+        query = query.eq('matricula', Number(buscaAlunoDebounced))
+      } else {
+        query = query.ilike('nome', `%${termo}%`)
+      }
+      const { data } = await query.limit(6)
 
       if (!data) return
 

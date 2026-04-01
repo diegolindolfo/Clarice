@@ -33,19 +33,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-page)' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <p className="text-2xl font-medium text-gray-900">Clarice</p>
-          <p className="text-sm text-gray-500 mt-1">Biblioteca Escolar</p>
+          <p className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Clarice</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Biblioteca Escolar</p>
         </div>
 
-        <div className="bg-white border rounded-2xl p-6 shadow-sm">
+        <div className="border rounded-2xl p-6 shadow-sm" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h1 className="text-base font-medium mb-5">Entrar no sistema</h1>
 
           <form onSubmit={entrar} className="flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">E-mail</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>E-mail</label>
               <input
                 type="email"
                 autoComplete="email"
@@ -59,7 +59,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Senha</label>
+              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Senha</label>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -85,7 +85,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-4">
+        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
           Acesso restrito à equipe da biblioteca
         </p>
       </div>

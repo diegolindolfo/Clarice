@@ -271,7 +271,7 @@ function EmprestimosContent() {
                   {fmt(e.prazo_final)}
                   {e.em_atraso && (
                     <span className="ml-1 text-xs">
-                      (+{Math.floor((Date.now() - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000)}d)
+                    (+{(() => { const [y,m,d] = e.prazo_final.split('T')[0].split('-').map(Number); return Math.floor((Date.now() - new Date(y, m-1, d).getTime()) / 86400000) })()}d)
                     </span>
                   )}
                 </td>

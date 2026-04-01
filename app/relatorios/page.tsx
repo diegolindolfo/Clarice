@@ -43,9 +43,9 @@ export default function RelatoriosPage() {
   const carregar = useCallback(async () => {
     setCarregando(true)
     const supabase = createClient()
-    const resultados: ResumoMensal[] = []
 
-    for (const mes of mesesDisponiveis) {
+    // MELHORIA: todos os meses são processados em paralelo (~6x mais rápido)
+    const resultados = await Promise.all(mesesDisponiveis.map(async (mes) => {
       const [y, m] = mes.split('-').map(Number)
       const inicio = `${mes}-01`
       const fim_date = new Date(y, m, 0)
@@ -60,7 +60,6 @@ export default function RelatoriosPage() {
         supabase.from('vw_painel_aluno').select('aluno_nome, turma, matricula').gte('data_saida', inicio).lte('data_saida', fim),
       ])
 
-      // Contabilizar livros top
       const livrosMap: Record<string, { titulo: string; autor: string; total: number }> = {}
       ;(livrosRes.data ?? []).forEach((e: any) => {
         const key = e.titulo ?? ''
@@ -69,12 +68,10 @@ export default function RelatoriosPage() {
       })
       const livrosTop = Object.values(livrosMap).sort((a, b) => b.total - a.total).slice(0, 5)
 
-      // Turmas
       const turmasMap: Record<string, number> = {}
       ;(turmasRes.data ?? []).forEach((e: any) => { turmasMap[e.turma ?? ''] = (turmasMap[e.turma ?? ''] ?? 0) + 1 })
       const turmasTop = Object.entries(turmasMap).map(([t, n]) => ({ turma: t, total: n })).sort((a, b) => b.total - a.total).slice(0, 5)
 
-      // Alunos
       const alunosMap: Record<number, { nome: string; turma: string; total: number }> = {}
       ;(alunosRes.data ?? []).forEach((e: any) => {
         if (!e.matricula) return
@@ -83,7 +80,7 @@ export default function RelatoriosPage() {
       })
       const alunosTop = Object.values(alunosMap).sort((a, b) => b.total - a.total).slice(0, 5)
 
-      resultados.push({
+      return {
         mes,
         label: mesLabel(mes),
         emprestimos: empRes.count ?? 0,
@@ -92,8 +89,8 @@ export default function RelatoriosPage() {
         livrosMaisEmprestados: livrosTop,
         turmasMaisAtivas: turmasTop,
         alunosMaisLeitores: alunosTop,
-      })
-    }
+      } as ResumoMensal
+    }))
 
     setResumos(resultados)
     if (!mesSelecionado) setMesSelecionado(mesesDisponiveis[0])

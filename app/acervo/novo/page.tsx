@@ -3,36 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { toast_success } from '@/components/Toast'
-
-type Exemplar = { key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string }
-type Forma    = { titulo: string; autor: string; editora: string; cdd: string; descricao: string; tipo: string; genero: string; categoria: string; serie: string; imagem_url: string }
-
-const TIPOS      = ['literatura', 'paradidático', 'técnico', 'didático', 'filosofia', 'outro']
-const AQUISICOES = ['pnld', 'doação', 'compra', 'gestão', 'permuta', 'outro']
-
-function novoExemplar(): Exemplar {
-  return { key: crypto.randomUUID(), tombo: '', volume: '', edicao: '', aquisicao: 'compra', data_cadastro: new Date().toISOString().split('T')[0] }
-}
-
-function Campo({ label, erro, children }: { label: string; erro?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-      {children}
-      {erro && <p className="text-xs text-red-600 mt-1">{erro}</p>}
-    </div>
-  )
-}
-
-function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-6">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">{titulo}</p>
-      {children}
-      <div className="mt-6 border-b border-gray-100" />
-    </div>
-  )
-}
+import { Campo, Secao } from '@/components/FormFields'
 
 export default function NovoTituloPage() {
   const router = useRouter()

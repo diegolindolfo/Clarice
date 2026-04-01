@@ -131,7 +131,7 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
               </span>
               {e.em_atraso && (
                 <span className="text-xs text-red-600">
-                  {Math.floor((Date.now() - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000)}d atraso
+                  {(() => { const [y,m,d] = e.prazo_final.split('T')[0].split('-').map(Number); return Math.floor((Date.now() - new Date(y, m-1, d).getTime()) / 86400000) })()}d atraso
                 </span>
               )}
             </div>
