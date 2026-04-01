@@ -1,7 +1,31 @@
 import type { Metadata, Viewport } from 'next'
+import { DM_Sans, DM_Mono, DM_Serif_Display } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
 import ToastContainer from '@/components/Toast'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+})
+
+const dmMono = DM_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-dm-mono',
+  display: 'swap',
+})
+
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal', 'italic'],
+  variable: '--font-dm-serif',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: { default: 'Clarice', template: '%s — Clarice' },
@@ -22,7 +46,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${dmSans.variable} ${dmMono.variable} ${dmSerifDisplay.variable}`}
+    >
       <head>
         {/* Previne flash de tema errado (FOUC) */}
         <script
@@ -40,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <p
             className="text-center text-[11px] tracking-wide"
-            style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-muted)' }}
+            style={{ fontFamily: "var(--font-dm-sans), sans-serif", color: 'var(--text-muted)' }}
           >
             Biblioteca Clarice Lispector
             <span className="mx-2" style={{ color: 'var(--border)' }}>·</span>
