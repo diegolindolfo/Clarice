@@ -152,6 +152,32 @@ function NovoEmprestimoForm() {
 
     async function buscar() {
       const supabase = createClient()
+      const termoLimpo = buscaLivroDebounced.replace(/^#/, '').trim()
+      const isTombo = /^\d+$/.test(termoLimpo)
+
+      if (isTombo) {
+        // Busca direta por tombo
+        const { data } = await supabase
+          .from('livros_exemplares')
+          .select('id, tombo, disponivel, acervo:acervo_id(titulo, autor)')
+          .eq('tombo', Number(termoLimpo))
+          .eq('disponivel', true)
+          .limit(8)
+
+        if (!data) return
+        setLivros(data.map(ex => {
+          const acervo = ex.acervo as any
+          return {
+            exemplar_id: ex.id,
+            tombo: ex.tombo,
+            titulo: acervo?.titulo ?? '—',
+            autor: acervo?.autor ?? '',
+            disponivel: ex.disponivel,
+          }
+        }))
+        return
+      }
+
       const termo = sanitizeBusca(buscaLivroDebounced)
       const { data } = await supabase
         .from('acervo')
@@ -281,10 +307,10 @@ function NovoEmprestimoForm() {
             </button>
           </div>
 
-          <p className="text-xs font-medium text-gray-500 mb-2">Buscar livro disponível</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">Buscar por título, autor ou tombo</p>
           <input
             autoFocus
-            placeholder="Ex: Dom Casmurro ou Machado"
+            placeholder="Ex: Dom Casmurro, Machado ou 1042"
             className="w-full mb-3"
             value={buscaLivro}
             onChange={e => setBuscaLivro(e.target.value)}

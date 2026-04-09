@@ -44,7 +44,7 @@ export default function Nav() {
 
   return (
     <nav
-      className="border-b px-6 py-0 flex items-stretch gap-0 h-12"
+      className="sticky top-0 z-50 border-b px-6 py-0 flex items-stretch gap-0 h-12"
       style={{ backgroundColor: 'var(--bg-nav)' }}
     >
 
