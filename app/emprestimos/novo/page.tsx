@@ -152,26 +152,59 @@ function NovoEmprestimoForm() {
 
     async function buscar() {
       const supabase = createClient()
-      const termo = sanitizeBusca(buscaLivroDebounced)
-      const { data } = await supabase
-        .from('acervo')
-        .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
-        .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`)
-        .eq('livros_exemplares.disponivel', true)
-        .limit(8)
+      const str = buscaLivroDebounced.trim()
+      const termo = sanitizeBusca(str)
+      const isNumero = /^\d+$/.test(str)
+      let exemplares: Livro[] = []
 
-      if (!data) return
+      // Se informou um número, tenta buscar pelo tombo primeiro
+      if (isNumero) {
+        const { data: dataTombo } = await supabase
+          .from('livros_exemplares')
+          .select('id, tombo, disponivel, acervo:acervo_id(titulo, autor)')
+          .eq('tombo', Number(str))
+          .eq('disponivel', true)
+          .limit(4)
 
-      const exemplares: Livro[] = data.flatMap(obra =>
-        (obra.livros_exemplares as any[]).map(ex => ({
-          exemplar_id: ex.id,
-          tombo: ex.tombo,
-          titulo: obra.titulo,
-          autor: obra.autor ?? '',
-          disponivel: ex.disponivel,
-        }))
-      )
-      setLivros(exemplares)
+        if (dataTombo) {
+          exemplares.push(...dataTombo.map(ex => ({
+            exemplar_id: ex.id,
+            tombo: ex.tombo,
+            titulo: (ex.acervo as any)?.titulo ?? 'Desconhecido',
+            autor: (ex.acervo as any)?.autor ?? '',
+            disponivel: ex.disponivel
+          })))
+        }
+      }
+
+      // Preenche até 8 itens com a busca de títulos/autores
+      if (exemplares.length < 8) {
+        const { data: dataAcervo } = await supabase
+          .from('acervo')
+          .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
+          .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`)
+          .eq('livros_exemplares.disponivel', true)
+          .limit(8 - exemplares.length)
+
+        if (dataAcervo) {
+          const fetchedExemplares = dataAcervo.flatMap(obra =>
+            (obra.livros_exemplares as any[]).map(ex => ({
+              exemplar_id: ex.id,
+              tombo: ex.tombo,
+              titulo: obra.titulo,
+              autor: obra.autor ?? '',
+              disponivel: ex.disponivel,
+            }))
+          )
+          // Impede duplicados caso o termo também tenha resultado no tombo (improvável, mas seguro)
+          const existentes = new Set(exemplares.map(e => e.exemplar_id))
+          for (const ex of fetchedExemplares) {
+            if (!existentes.has(ex.exemplar_id)) exemplares.push(ex)
+          }
+        }
+      }
+
+      setLivros(exemplares.slice(0, 8))
     }
     buscar()
   }, [buscaLivroDebounced])
