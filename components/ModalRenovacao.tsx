@@ -30,6 +30,13 @@ export default function ModalRenovacao({ emprestimo, onFechar, onConfirmar }: Pr
     return data.toLocaleDateString('pt-BR')
   })()
 
+  // Scroll lock — impede scroll do body enquanto modal aberto
+  useEffect(() => {
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = original }
+  }, [])
+
   // Acessibilidade: Escape para fechar + trap de foco
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

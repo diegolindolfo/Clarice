@@ -43,6 +43,7 @@ export default function AcervoPage() {
   const [tipo, setTipo]                       = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
   const [carregando, setCarregando]           = useState(true)
+  const [erro, setErro]                       = useState('')
 
   // Painel de detalhe
   const [selecionado, setSelecionado]         = useState<Livro | null>(null)
@@ -59,35 +60,43 @@ export default function AcervoPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
-    const supabase = createClient()
+    setErro('')
+    try {
+      const supabase = createClient()
 
-    let query = supabase
-      .from('vw_acervo_catalogo')
-      .select('*', { count: 'exact' })
-      .order('titulo')
-      .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
+      let query = supabase
+        .from('vw_acervo_catalogo')
+        .select('*', { count: 'exact' })
+        .order('titulo')
+        .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
 
-    if (buscaDebounced.length >= 2) {
-      const termo = sanitizeBusca(buscaDebounced)
-      const { data: ids } = await supabase
-        .from('acervo')
-        .select('id')
-        .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
-        .limit(100)
+      if (buscaDebounced.length >= 2) {
+        const termo = sanitizeBusca(buscaDebounced)
+        const { data: ids } = await supabase
+          .from('acervo')
+          .select('id')
+          .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
+          .limit(100)
 
-      const listaIds = ids?.map(r => r.id) ?? []
-      if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
-      query = query.in('id', listaIds)
+        const listaIds = ids?.map((r: any) => r.id) ?? []
+        if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
+        query = query.in('id', listaIds)
+      }
+
+      if (tipo)                        query = query.eq('tipo', tipo.toLowerCase())
+      if (disponibilidade === 'sim')   query = query.gt('exemplares_disponiveis', 0)
+      if (disponibilidade === 'nao')   query = query.eq('exemplares_disponiveis', 0)
+
+      const { data, count, error } = await query
+      if (error) throw error
+      setLivros(data ?? [])
+      setTotal(count ?? 0)
+    } catch (err) {
+      console.error('Erro ao carregar acervo:', err)
+      setErro('Erro ao carregar dados. Tente novamente.')
+    } finally {
+      setCarregando(false)
     }
-
-    if (tipo)                        query = query.eq('tipo', tipo.toLowerCase())
-    if (disponibilidade === 'sim')   query = query.gt('exemplares_disponiveis', 0)
-    if (disponibilidade === 'nao')   query = query.eq('exemplares_disponiveis', 0)
-
-    const { data, count } = await query
-    setLivros(data ?? [])
-    setTotal(count ?? 0)
-    setCarregando(false)
   }, [buscaDebounced, tipo, disponibilidade, pagina])
 
   useEffect(() => { carregar() }, [carregar])
@@ -114,6 +123,12 @@ export default function AcervoPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {erro && (
+        <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
+          <span>{erro}</span>
+          <button onClick={carregar} className="text-xs underline ml-4">Tentar novamente</button>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Lista */}
@@ -216,9 +231,9 @@ export default function AcervoPage() {
           {/* Paginação */}
           {totalPaginas > 1 && (
             <div className="flex items-center justify-center gap-3 text-xs text-gray-500 mt-3">
-              <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="border rounded-lg px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40 transition-colors">←</button>
+              <button onClick={() => { setPagina(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }} disabled={pagina === 1} className="border rounded-lg px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40 transition-colors">←</button>
               <span>{pagina}/{totalPaginas}</span>
-              <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="border rounded-lg px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40 transition-colors">→</button>
+              <button onClick={() => { setPagina(p => Math.min(totalPaginas, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }} disabled={pagina === totalPaginas} className="border rounded-lg px-2.5 py-1 hover:bg-gray-50 disabled:opacity-40 transition-colors">→</button>
             </div>
           )}
         </div>

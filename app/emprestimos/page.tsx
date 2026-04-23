@@ -310,7 +310,7 @@ function EmprestimosContent() {
       {totalPaginas > 1 && (
         <div className="flex items-center justify-center gap-3 text-sm text-gray-500 mt-4">
           <button
-            onClick={() => setPagina(p => Math.max(1, p - 1))}
+            onClick={() => { setPagina(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             disabled={pagina === 1}
             className="border rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
@@ -318,7 +318,7 @@ function EmprestimosContent() {
           </button>
           <span>Página {pagina} de {totalPaginas}</span>
           <button
-            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+            onClick={() => { setPagina(p => Math.min(totalPaginas, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
             disabled={pagina === totalPaginas}
             className="border rounded-lg px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >

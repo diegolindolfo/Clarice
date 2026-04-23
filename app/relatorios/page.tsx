@@ -43,9 +43,8 @@ export default function RelatoriosPage() {
   const carregar = useCallback(async () => {
     setCarregando(true)
     const supabase = createClient()
-    const resultados: ResumoMensal[] = []
 
-    for (const mes of mesesDisponiveis) {
+    async function carregarMes(mes: string): Promise<ResumoMensal> {
       const [y, m] = mes.split('-').map(Number)
       const inicio = `${mes}-01`
       const fim_date = new Date(y, m, 0)
@@ -83,7 +82,7 @@ export default function RelatoriosPage() {
       })
       const alunosTop = Object.values(alunosMap).sort((a, b) => b.total - a.total).slice(0, 5)
 
-      resultados.push({
+      return {
         mes,
         label: mesLabel(mes),
         emprestimos: empRes.count ?? 0,
@@ -92,8 +91,11 @@ export default function RelatoriosPage() {
         livrosMaisEmprestados: livrosTop,
         turmasMaisAtivas: turmasTop,
         alunosMaisLeitores: alunosTop,
-      })
+      }
     }
+
+    // Carregar todos os 6 meses em paralelo (antes era sequencial)
+    const resultados = await Promise.all(mesesDisponiveis.map(carregarMes))
 
     setResumos(resultados)
     if (!mesSelecionado) setMesSelecionado(mesesDisponiveis[0])

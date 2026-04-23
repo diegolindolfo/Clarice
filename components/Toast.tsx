@@ -7,6 +7,7 @@ type Toast = {
   id: string
   message: string
   type: ToastType
+  saindo?: boolean
 }
 
 const ICON: Record<ToastType, string> = {
@@ -35,14 +36,24 @@ function notify() {
   listeners.forEach(fn => fn([...toasts]))
 }
 
+function removerComAnimacao(id: string) {
+  // Marca como "saindo" para disparar animação
+  toasts = toasts.map(t => t.id === id ? { ...t, saindo: true } : t)
+  notify()
+  // Remove de fato após animação (250ms)
+  setTimeout(() => {
+    toasts = toasts.filter(t => t.id !== id)
+    notify()
+  }, 250)
+}
+
 export function toast(message: string, type: ToastType = 'success') {
   const id = crypto.randomUUID()
   toasts = [...toasts, { id, message, type }]
   notify()
 
   setTimeout(() => {
-    toasts = toasts.filter(t => t.id !== id)
-    notify()
+    removerComAnimacao(id)
   }, 4000)
 }
 
@@ -65,14 +76,14 @@ export default function ToastContainer() {
       {items.map(t => (
         <div
           key={t.id}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg text-sm animate-fade-up ${STYLE[t.type]}`}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg text-sm ${t.saindo ? 'animate-fade-out' : 'animate-fade-up'} ${STYLE[t.type]}`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${ICON_STYLE[t.type]}`}>
             {ICON[t.type]}
           </span>
           <span className="flex-1">{t.message}</span>
           <button
-            onClick={() => { toasts = toasts.filter(x => x.id !== t.id); notify() }}
+            onClick={() => removerComAnimacao(t.id)}
             className="text-xs opacity-50 hover:opacity-100 flex-shrink-0"
             aria-label="Fechar notificação"
           >

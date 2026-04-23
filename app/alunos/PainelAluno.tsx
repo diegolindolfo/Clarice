@@ -33,7 +33,7 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
     const { data } = await supabase
       .from('vw_painel_aluno').select('*').eq('matricula', aluno.matricula).order('data_saida', { ascending: false })
 
-    const lista: Emprestimo[] = (data ?? []).map(e => ({
+    const lista: Emprestimo[] = (data ?? []).map((e: any) => ({
       emprestimo_id: e.emprestimo_id, titulo: e.titulo, autor: e.autor,
       data_saida: e.data_saida, prazo_final: e.prazo_final,
       data_devolucao_real: e.data_devolucao_real, status: e.status, em_atraso: e.em_atraso,

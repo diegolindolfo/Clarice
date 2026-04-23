@@ -76,7 +76,7 @@ function NovoEmprestimoForm() {
         .select('matricula, nome, turmas(nome)')
         .eq('matricula', Number(matriculaParam))
         .single()
-        .then(({ data }) => {
+        .then(({ data }: any) => {
           if (!data) return
           setAlunoSelecionado({
             matricula: data.matricula,
@@ -96,7 +96,7 @@ function NovoEmprestimoForm() {
         .eq('disponivel', true)
         .limit(1)
         .single()
-        .then(({ data }) => {
+        .then(({ data }: any) => {
           if (!data) return
           const acervo = data.acervo as any
           setLivroSelecionado({
@@ -128,15 +128,15 @@ function NovoEmprestimoForm() {
 
       if (!data) return
 
-      const matriculas = data.map(a => a.matricula)
+      const matriculas = data.map((a: any) => a.matricula)
       const { data: atrasados } = await supabase
         .from('vw_emprestimos_atrasados')
         .select('matricula')
         .in('matricula', matriculas)
 
-      const atrasadosSet = new Set(atrasados?.map(a => a.matricula) ?? [])
+      const atrasadosSet = new Set(atrasados?.map((a: any) => a.matricula) ?? [])
 
-      setAlunos(data.map(a => ({
+      setAlunos(data.map((a: any) => ({
         matricula: a.matricula,
         nome: a.nome,
         turma: (a.turmas as any)?.nome ?? '',
@@ -167,7 +167,7 @@ function NovoEmprestimoForm() {
           .limit(4)
 
         if (dataTombo) {
-          exemplares.push(...dataTombo.map(ex => ({
+          exemplares.push(...dataTombo.map((ex: any) => ({
             exemplar_id: ex.id,
             tombo: ex.tombo,
             titulo: (ex.acervo as any)?.titulo ?? 'Desconhecido',
@@ -187,7 +187,7 @@ function NovoEmprestimoForm() {
           .limit(8 - exemplares.length)
 
         if (dataAcervo) {
-          const fetchedExemplares = dataAcervo.flatMap(obra =>
+          const fetchedExemplares = dataAcervo.flatMap((obra: any) =>
             (obra.livros_exemplares as any[]).map(ex => ({
               exemplar_id: ex.id,
               tombo: ex.tombo,

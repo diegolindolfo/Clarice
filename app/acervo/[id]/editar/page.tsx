@@ -68,7 +68,7 @@ export default function EditarAcervoPage() {
         imagem_url: livro.imagem_url ?? '',
       })
 
-      setExemplares((exs ?? []).map(ex => ({
+      setExemplares((exs ?? []).map((ex: any) => ({
         id:             ex.id,
         key:            ex.id,
         tombo:          ex.tombo?.toString() ?? '',
