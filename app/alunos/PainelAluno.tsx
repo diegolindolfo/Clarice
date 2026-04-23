@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import Image from 'next/image'
 import { fmt, corAvatar, iniciais } from '@/lib/utils'
 import ModalEditarAluno from '@/components/ModalEditarAluno'
 
@@ -60,7 +61,9 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
     <div>
       <div className="flex items-center gap-4 mb-5">
         {aluno.foto_url ? (
-          <img src={aluno.foto_url} alt={aluno.nome} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+          <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+             <Image src={aluno.foto_url} alt={aluno.nome} fill sizes="48px" className="object-cover" unoptimized={true} />
+          </div>
         ) : (
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
             {iniciais(aluno.nome)}

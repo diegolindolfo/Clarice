@@ -241,12 +241,15 @@ function EmprestimosContent() {
 
       {/* Tabela — responsiva com scroll horizontal */}
       <div className="border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
+        <table className="w-full text-sm">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
             <tr>
-              {['Aluno', 'Livro', 'Saída', 'Prazo', 'Status', 'Ação'].map(h => (
-                <th key={h} className="text-left px-4 py-3 font-medium">{h}</th>
-              ))}
+                <th className="text-left px-4 py-3 font-medium">Aluno</th>
+                <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Livro</th>
+                <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Saída</th>
+                <th className="text-left px-4 py-3 font-medium">Prazo</th>
+                <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Status</th>
+                <th className="text-left px-4 py-3 font-medium">Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -262,20 +265,20 @@ function EmprestimosContent() {
                   <p className="font-medium">{e.aluno_nome}</p>
                   <p className="text-xs text-gray-400">{e.turma} · {e.matricula}</p>
                 </td>
-                <td className="px-4 py-3">
-                  <p className="truncate max-w-[180px]">{e.titulo}</p>
-                  <p className="text-xs text-gray-400 truncate max-w-[180px]">{e.autor}</p>
+                <td className="px-4 py-3 hidden sm:table-cell">
+                  <p className="truncate max-w-[120px] sm:max-w-[180px]">{e.titulo}</p>
+                  <p className="text-xs text-gray-400 truncate max-w-[120px] sm:max-w-[180px]">{e.autor}</p>
                 </td>
-                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(e.data_saida)}</td>
+                <td className="px-4 py-3 text-gray-500 whitespace-nowrap hidden md:table-cell">{fmt(e.data_saida)}</td>
                 <td className={`px-4 py-3 whitespace-nowrap ${e.em_atraso ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
                   {fmt(e.prazo_final)}
                   {e.em_atraso && (
-                    <span className="ml-1 text-xs">
+                    <span className="ml-1 text-xs whitespace-nowrap">
                       (+{Math.floor((Date.now() - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000)}d)
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 hidden lg:table-cell">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_STYLE[e.status] ?? 'bg-gray-100 text-gray-600'}`}>
                     {e.status.charAt(0) + e.status.slice(1).toLowerCase()}
                   </span>

@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { fmt, sanitizeBusca } from '@/lib/utils'
+import Image from 'next/image'
 import Chip from '@/components/Chip'
 
 type Livro = {
@@ -195,12 +196,12 @@ export default function AcervoPage() {
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b last:border-none transition-colors ${ativo ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
                 >
                   <div
-                    className="w-10 h-14 rounded-lg flex items-center justify-center text-base font-medium flex-shrink-0"
+                    className="relative w-10 h-14 rounded-lg flex items-center justify-center text-base font-medium flex-shrink-0 overflow-hidden"
                     style={{ background: corTipo(livro.tipo) }}
                   >
                     {livro.imagem_url
-                      ? <img src={livro.imagem_url} alt="" className="w-full h-full object-cover rounded-lg" />
-                      : livro.titulo[0]?.toUpperCase()
+                      ? <Image src={livro.imagem_url} alt="" fill sizes="40px" className="object-cover rounded-lg" unoptimized={true} />
+                      : <span className="text-gray-600">{livro.titulo[0]?.toUpperCase()}</span>
                     }
                   </div>
                   <div className="flex-1 min-w-0">
@@ -293,10 +294,10 @@ function PainelLivro({
     <div>
       {/* Cabeçalho */}
       <div className="flex gap-4 mb-5">
-        <div className="w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0" style={{ background: '#EEEDFE' }}>
+        <div className="relative w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden" style={{ background: '#EEEDFE' }}>
           {livro.imagem_url
-            ? <img src={livro.imagem_url} alt="" className="w-full h-full object-cover rounded-xl" />
-            : livro.titulo[0]?.toUpperCase()
+            ? <Image src={livro.imagem_url} alt="" fill sizes="160px" className="object-cover rounded-xl" unoptimized={true} />
+            : <span className="text-gray-600">{livro.titulo[0]?.toUpperCase()}</span>
           }
         </div>
         <div className="flex-1">

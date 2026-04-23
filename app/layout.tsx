@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { DM_Sans, DM_Mono, DM_Serif_Display } from 'next/font/google'
-import './globals.css'
+import '@/app/globals.css'
 import Nav from '@/components/Nav'
 import ToastContainer from '@/components/Toast'
+import OfflineBanner from '@/components/OfflineBanner'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -59,7 +60,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="flex flex-col min-h-screen">
+      <body className="antialiased font-sans min-h-screen relative flex flex-col pt-12 md:pt-0" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
+        <OfflineBanner />
         <Nav />
         <main className="flex-1">{children}</main>
         <footer

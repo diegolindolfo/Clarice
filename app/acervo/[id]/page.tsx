@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { fmt } from '@/lib/utils'
+import Image from 'next/image'
 
 type Acervo = {
   id: string; titulo: string; autor: string | null; editora: string | null
@@ -46,10 +47,10 @@ export default function DetalheAcervoPage() {
       <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800 mb-6 flex items-center gap-1">← Acervo</button>
 
       <div className="flex gap-5 mb-6">
-        <div className="w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0" style={{ background: '#EEEDFE' }}>
+        <div className="relative w-20 h-28 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden" style={{ background: '#EEEDFE' }}>
           {livro.imagem_url
-            ? <img src={livro.imagem_url} alt="" className="w-full h-full object-cover rounded-xl" />
-            : livro.titulo[0]?.toUpperCase()
+            ? <Image src={livro.imagem_url} alt="" fill sizes="160px" className="object-cover rounded-xl" unoptimized={true} />
+            : <span className="text-gray-400">{livro.titulo[0]?.toUpperCase()}</span>
           }
         </div>
         <div className="flex-1">

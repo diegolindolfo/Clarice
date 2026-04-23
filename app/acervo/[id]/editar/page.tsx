@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { toast_success, toast_error } from '@/components/Toast'
+import Image from 'next/image'
 
 type Exemplar     = { id: string; key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string; isNew?: boolean }
 type Forma        = { titulo: string; autor: string; editora: string; cdd: string; descricao: string; tipo: string; genero: string; categoria: string; serie: string; imagem_url: string }
@@ -215,9 +216,9 @@ export default function EditarAcervoPage() {
           <div className="flex-shrink-0">
             <label className="block text-xs font-medium text-gray-500 mb-1">Capa</label>
             {forma.imagem_url ? (
-              <div className="relative w-20 h-28">
-                <img src={forma.imagem_url} alt="Capa" className="w-20 h-28 object-cover rounded-xl border" />
-                <button onClick={() => setField('imagem_url', '')} aria-label="Remover capa" className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-600 rounded-full text-xs">✕</button>
+              <div className="relative w-20 h-28 shrink-0">
+                <Image src={forma.imagem_url} alt="Capa" fill sizes="80px" className="object-cover rounded-xl border" unoptimized={true} />
+                <button onClick={() => setField('imagem_url', '')} aria-label="Remover capa" className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-600 rounded-full text-xs z-10">✕</button>
               </div>
             ) : (
               <div className="w-20 h-28 border border-dashed rounded-xl flex flex-col items-center justify-center gap-1 text-gray-400">

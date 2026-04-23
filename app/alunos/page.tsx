@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { corAvatar, iniciais, sanitizeBusca } from '@/lib/utils'
+import Image from 'next/image'
 import Chip from '@/components/Chip'
 import PainelAluno from './PainelAluno'
 
@@ -169,7 +170,9 @@ function AlunosContent() {
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b last:border-none transition-colors ${ativo ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
                 >
                   {aluno.foto_url ? (
-                    <img src={aluno.foto_url} alt={aluno.nome} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                    <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
+                      <Image src={aluno.foto_url} alt={aluno.nome} fill sizes="36px" className="object-cover" unoptimized={true} />
+                    </div>
                   ) : (
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: bg, color: tc }}>
                       {iniciais(aluno.nome)}
