@@ -130,6 +130,22 @@ button {
               opacity 0.15s ease;
 }
 
+/* Botão de ação primária do nav (+Novo) */
+.nav-btn-primary {
+  background-color: #1a1917;
+  color: #ffffff;
+}
+.nav-btn-primary:hover {
+  background-color: #374151;
+}
+[data-theme="dark"] .nav-btn-primary {
+  background-color: #e8e8ea;
+  color: #0f0f10;
+}
+[data-theme="dark"] .nav-btn-primary:hover {
+  background-color: #d1d5db;
+}
+
 /* ── Scrollbar discreta ───────────────────────────────── */
 
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
@@ -146,6 +162,17 @@ button {
 
 .animate-fade-up {
   animation: fadeUp 0.35s ease both;
+}
+
+/* ── Animação de saída suave (toasts) ────────────────── */
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(6px); }
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.25s ease both;
 }
 
 /* ── Dark mode overrides para classes do Tailwind ─────── */

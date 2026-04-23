@@ -73,7 +73,7 @@ function NovoEmprestimoForm() {
         .select('matricula, nome, turmas(nome)')
         .eq('matricula', Number(matriculaParam))
         .single()
-        .then(({ data }) => {
+        .then(({ data }: any) => {
           if (!data) return
           setAlunoSelecionado({
             matricula: data.matricula,
@@ -93,7 +93,7 @@ function NovoEmprestimoForm() {
         .eq('disponivel', true)
         .limit(1)
         .single()
-        .then(({ data }) => {
+        .then(({ data }: any) => {
           if (!data) return
           const acervo = data.acervo as any
           setLivroSelecionado({
@@ -125,15 +125,15 @@ function NovoEmprestimoForm() {
 
       if (!data) return
 
-      const matriculas = data.map(a => a.matricula)
+      const matriculas = data.map((a: any) => a.matricula)
       const { data: atrasados } = await supabase
         .from('vw_emprestimos_atrasados')
         .select('matricula')
         .in('matricula', matriculas)
 
-      const atrasadosSet = new Set(atrasados?.map(a => a.matricula) ?? [])
+      const atrasadosSet = new Set(atrasados?.map((a: any) => a.matricula) ?? [])
 
-      setAlunos(data.map(a => ({
+      setAlunos(data.map((a: any) => ({
         matricula: a.matricula,
         nome: a.nome,
         turma: (a.turmas as any)?.nome ?? '',
@@ -149,53 +149,56 @@ function NovoEmprestimoForm() {
 
     async function buscar() {
       const supabase = createClient()
-      const isTombo = /^\d+$/.test(buscaLivroDebounced.trim())
+      const str = buscaLivroDebounced.trim()
+      const isTombo = /^\d+$/.test(str)
+      let exemplares: Livro[] = []
 
       if (isTombo) {
-        // Busca direta pelo número de tombo
-        const { data } = await supabase
+        const { data: dataTombo } = await supabase
           .from('livros_exemplares')
           .select('id, tombo, disponivel, acervo:acervo_id(id, titulo, autor)')
-          .eq('tombo', Number(buscaLivroDebounced))
+          .eq('tombo', Number(str))
           .eq('disponivel', true)
-          .limit(8)
+          .limit(4)
 
-        if (!data) return
-
-        const exemplares: Livro[] = data.map(ex => {
-          const acervo = ex.acervo as any
-          return {
+        if (dataTombo) {
+          exemplares.push(...dataTombo.map((ex: any) => ({
             exemplar_id: ex.id,
             tombo: ex.tombo,
-            titulo: acervo?.titulo ?? '',
-            autor: acervo?.autor ?? '',
+            titulo: (ex.acervo as any)?.titulo ?? 'Desconhecido',
+            autor: (ex.acervo as any)?.autor ?? '',
             disponivel: ex.disponivel,
-          }
-        })
-        setLivros(exemplares)
-      } else {
-        // Busca por título ou autor
-        const termo = sanitizeBusca(buscaLivroDebounced)
-        const { data } = await supabase
+          })))
+        }
+      } 
+      
+      if (exemplares.length < 8) {
+        const termo = sanitizeBusca(str)
+        const { data: dataAcervo } = await supabase
           .from('acervo')
           .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
           .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`)
           .eq('livros_exemplares.disponivel', true)
-          .limit(8)
+          .limit(8 - exemplares.length)
 
-        if (!data) return
-
-        const exemplares: Livro[] = data.flatMap(obra =>
-          (obra.livros_exemplares as any[]).map(ex => ({
-            exemplar_id: ex.id,
-            tombo: ex.tombo,
-            titulo: obra.titulo,
-            autor: obra.autor ?? '',
-            disponivel: ex.disponivel,
-          }))
-        )
-        setLivros(exemplares)
+        if (dataAcervo) {
+          const fetchedExemplares = dataAcervo.flatMap((obra: any) =>
+            (obra.livros_exemplares as any[]).map((ex: any) => ({
+              exemplar_id: ex.id,
+              tombo: ex.tombo,
+              titulo: obra.titulo,
+              autor: obra.autor ?? '',
+              disponivel: ex.disponivel,
+            }))
+          )
+          const existentes = new Set(exemplares.map(e => e.exemplar_id))
+          for (const ex of fetchedExemplares) {
+            if (!existentes.has(ex.exemplar_id)) exemplares.push(ex)
+          }
+        }
       }
+      
+      setLivros(exemplares.slice(0, 8))
     }
     buscar()
   }, [buscaLivroDebounced])

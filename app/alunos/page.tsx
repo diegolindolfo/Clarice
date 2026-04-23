@@ -28,6 +28,7 @@ function AlunosContent() {
   const [buscaDebounced, setBuscaDebounced] = useState('')
   const [serie, setSerie]                   = useState('')
   const [carregando, setCarregando]         = useState(true)
+  const [erro, setErro]                     = useState('')
   const [selecionado, setSelecionado]       = useState<Aluno | null>(null)
 
   const selecionadoRef = useRef(selecionado)
@@ -40,73 +41,86 @@ function AlunosContent() {
 
   const carregar = useCallback(async () => {
     setCarregando(true)
-    const supabase = createClient()
+    setErro('')
+    try {
+      const supabase = createClient()
 
-    let query = supabase
-      .from('alunos')
-      .select('matricula, nome, email, ativo, turma_id, foto_url, turmas(nome)')
-      .eq('ativo', true)
-      .order('nome')
-      .limit(100)
+      let query = supabase
+        .from('alunos')
+        .select('matricula, nome, email, ativo, turma_id, foto_url, turmas(nome)')
+        .eq('ativo', true)
+        .order('nome')
+        .limit(100)
 
-    if (buscaDebounced.length >= 2) {
-      const isMatricula = /^\d+$/.test(buscaDebounced)
-      if (isMatricula) {
-        query = query.eq('matricula', Number(buscaDebounced))
-      } else {
-        const termo = sanitizeBusca(buscaDebounced)
-        query = query.ilike('nome', `%${termo}%`)
+      if (buscaDebounced.length >= 2) {
+        const isMatricula = /^\d+$/.test(buscaDebounced)
+        if (isMatricula) {
+          query = query.eq('matricula', Number(buscaDebounced))
+        } else {
+          const termo = sanitizeBusca(buscaDebounced)
+          query = query.ilike('nome', `%${termo}%`)
+        }
       }
-    }
 
-    if (serie) {
-      const { data: turmaIds } = await supabase
-        .from('turmas')
-        .select('id')
-        .ilike('nome', `${serie[0]}º%`)
-      if (turmaIds && turmaIds.length > 0) {
-        query = query.in('turma_id', turmaIds.map(t => t.id))
+      if (serie) {
+        const { data: turmaIds } = await supabase
+          .from('turmas')
+          .select('id')
+          .ilike('nome', `${serie[0]}º%`)
+        if (turmaIds && turmaIds.length > 0) {
+          query = query.in('turma_id', turmaIds.map((t: any) => t.id))
+        }
       }
+
+      const { data, error } = await query
+      if (error) throw error
+      if (!data) { setCarregando(false); return }
+
+      const matriculas = data.map((a: any) => a.matricula)
+      const { data: atrasados } = matriculas.length
+        ? await supabase.from('vw_emprestimos_atrasados').select('matricula').in('matricula', matriculas)
+        : { data: [] }
+
+      const atrasadosSet = new Set(atrasados?.map((a: any) => a.matricula) ?? [])
+
+      const lista: Aluno[] = data.map((a: any) => ({
+        matricula: a.matricula, nome: a.nome, turma: (a.turmas as any)?.nome ?? '',
+        turma_id: a.turma_id, email: a.email, ativo: a.ativo,
+        em_atraso: atrasadosSet.has(a.matricula), foto_url: a.foto_url,
+      }))
+
+      setAlunos(lista)
+
+      // Pré-seleciona aluno via query param (?matricula=...)
+      const matriculaParam = searchParams.get('matricula')
+      if (matriculaParam && !selecionadoRef.current) {
+        const encontrado = lista.find((a: any) => a.matricula === Number(matriculaParam))
+        if (encontrado) setSelecionado(encontrado)
+      }
+
+      // Mantém o selecionado atualizado após recargas
+      if (selecionadoRef.current) {
+        const atualizado = lista.find(a => a.matricula === selecionadoRef.current!.matricula)
+        if (atualizado) setSelecionado(atualizado)
+      }
+    } catch (err) {
+      console.error('Erro ao carregar alunos:', err)
+      setErro('Erro ao carregar dados. Tente novamente.')
+    } finally {
+      setCarregando(false)
     }
-
-    const { data } = await query
-    if (!data) { setCarregando(false); return }
-
-    const matriculas = data.map(a => a.matricula)
-    const { data: atrasados } = matriculas.length
-      ? await supabase.from('vw_emprestimos_atrasados').select('matricula').in('matricula', matriculas)
-      : { data: [] }
-
-    const atrasadosSet = new Set(atrasados?.map(a => a.matricula) ?? [])
-
-    const lista: Aluno[] = data.map(a => ({
-      matricula: a.matricula, nome: a.nome, turma: (a.turmas as any)?.nome ?? '',
-      turma_id: a.turma_id, email: a.email, ativo: a.ativo,
-      em_atraso: atrasadosSet.has(a.matricula), foto_url: a.foto_url,
-    }))
-
-    setAlunos(lista)
-
-    // Pré-seleciona aluno via query param (?matricula=...)
-    const matriculaParam = searchParams.get('matricula')
-    if (matriculaParam && !selecionadoRef.current) {
-      const encontrado = lista.find(a => a.matricula === Number(matriculaParam))
-      if (encontrado) setSelecionado(encontrado)
-    }
-
-    // Mantém o selecionado atualizado após recargas
-    if (selecionadoRef.current) {
-      const atualizado = lista.find(a => a.matricula === selecionadoRef.current!.matricula)
-      if (atualizado) setSelecionado(atualizado)
-    }
-
-    setCarregando(false)
   }, [buscaDebounced, serie, searchParams])
 
   useEffect(() => { carregar() }, [carregar])
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {erro && (
+        <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3 mb-5 flex items-center justify-between">
+          <span>{erro}</span>
+          <button onClick={carregar} className="text-xs underline ml-4">Tentar novamente</button>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
         {/* Lista */}

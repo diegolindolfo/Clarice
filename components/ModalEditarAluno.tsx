@@ -37,11 +37,18 @@ export default function ModalEditarAluno({ aluno, onFechar, onSalvar }: Props) {
       setTurmas(data ?? [])
 
       // Pré-selecionar a turma atual
-      const turmaAtual = (data ?? []).find(t => t.nome === aluno.turma)
-      if (turmaAtual) setTurmaId(turmaAtual.id)
+      const match = (data ?? []).find((t: any) => t.nome === aluno.turma)
+      if (match) setTurmaId(match.id)
     }
     carregar()
   }, [aluno.turma])
+
+  // Scroll lock — impede scroll do body enquanto modal aberto
+  useEffect(() => {
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = original }
+  }, [])
 
   // Acessibilidade
   useEffect(() => {
