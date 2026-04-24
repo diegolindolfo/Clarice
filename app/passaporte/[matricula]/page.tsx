@@ -30,6 +30,36 @@ type Posicao = {
   totalAluno: number
 }
 
+type PayloadPassaporte = {
+  aluno: {
+    matricula: number
+    nome: string
+    turma: string | null
+    turma_id: number | null
+    foto_url: string | null
+    ativo: boolean
+  } | null
+  carimbos: Array<{
+    emprestimo_id: string
+    titulo: string | null
+    autor: string | null
+    tipo: string | null
+    genero: string | null
+    imagem_url: string | null
+    data_saida: string
+    data_devolucao_real: string | null
+    prazo_final: string | null
+    status: string
+  }>
+  ranking: {
+    geral: number | null
+    geralTotal: number
+    turma: number | null
+    turmaTotal: number
+    totalAluno: number
+  } | null
+}
+
 const MESES_PT_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 function labelMesChave(mes: string): string {
@@ -154,6 +184,7 @@ export default function PassaporteAlunoPage() {
   const [posicao, setPosicao] = useState<Posicao | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+  const [baixandoPDF, setBaixandoPDF] = useState(false)
 
   useEffect(() => {
     if (!Number.isFinite(matriculaNum)) {
@@ -168,6 +199,32 @@ export default function PassaporteAlunoPage() {
       try {
         const supabase = createClient()
 
+        // 1) Preferimos a RPC publica get_passaporte (security definer,
+        //    um unico round-trip). Se nao existir (schema antigo), caimos
+        //    pras queries diretas abaixo.
+        const { data: rpcData, error: rpcErr } = await supabase.rpc(
+          'get_passaporte',
+          { p_matricula: matriculaNum },
+        )
+
+        const rpcIndisponivel =
+          !!rpcErr &&
+          (rpcErr.code === 'PGRST202' ||
+            /function .* does not exist|could not find the function/i.test(
+              rpcErr.message ?? '',
+            ))
+
+        // Se a RPC respondeu sem erro, confiamos no retorno (inclusive null =
+        // aluno nao encontrado) e NAO caimos pro fallback — se a RPC existe
+        // e que tem permissao anon, as queries diretas nao teriam.
+        if (!rpcErr) {
+          aplicarPayload(rpcData as PayloadPassaporte | null)
+          return
+        }
+
+        if (!rpcIndisponivel) throw rpcErr
+
+        // 2) Fallback: queries diretas (pre-migracao)
         const { data: alunoData, error: alunoErr } = await supabase
           .from('alunos')
           .select('matricula, nome, turma_id, foto_url, ativo, turmas(nome)')
@@ -191,16 +248,15 @@ export default function PassaporteAlunoPage() {
         }
         setAluno(alunoDetalhe)
 
-        // Empréstimos com dados do livro
         const { data: empData, error: empErr } = await supabase
           .from('emprestimos')
           .select(`
-            id, status, data_saida, prazo_final, data_devolucao_real,
+            id, status, data_saida, data_devolucao_prevista, data_devolucao_renovada, data_devolucao_real,
             exemplar:livros_exemplares(
               acervo:acervo_id(titulo, autor, tipo, genero, imagem_url)
             )
           `)
-          .eq('matricula', matriculaNum)
+          .eq('aluno_matricula', matriculaNum)
           .order('data_saida', { ascending: false })
 
         if (empErr) throw empErr
@@ -208,10 +264,11 @@ export default function PassaporteAlunoPage() {
         const hoje = new Date().toISOString().split('T')[0]
         const lista: Carimbo[] = (empData ?? []).map((e: any) => {
           const acervo = e.exemplar?.acervo ?? {}
+          const prazoEfetivo = e.data_devolucao_renovada ?? e.data_devolucao_prevista ?? null
           const em_atraso =
             (e.status === 'EMPRESTADO' || e.status === 'RENOVADO') &&
-            e.prazo_final &&
-            e.prazo_final < hoje
+            prazoEfetivo != null &&
+            prazoEfetivo < hoje
           return {
             emprestimo_id: e.id,
             titulo: acervo.titulo ?? '(sem título)',
@@ -227,23 +284,36 @@ export default function PassaporteAlunoPage() {
         })
         setCarimbos(lista)
 
-        // Ranking: quantas vezes DEVOLVIDO por aluno, no ano atual
         const anoAtual = new Date().getFullYear()
         const inicioAno = `${anoAtual}-01-01`
 
-        const { data: rankingData } = await supabase
-          .from('emprestimos')
-          .select('matricula, turma_id')
-          .eq('status', 'DEVOLVIDO')
-          .gte('data_devolucao_real', inicioAno)
+        // Pega aluno_matricula + (turma_id atual via alunos) pra reconstruir
+        // o ranking geral e por turma. emprestimos nao tem turma_id: a turma
+        // historica e `sala_na_data` (texto), mas pra ranking comparamos com
+        // a turma atual de cada aluno.
+        const [{ data: rankingData }, { data: alunosTurma }] = await Promise.all([
+          supabase
+            .from('emprestimos')
+            .select('aluno_matricula')
+            .eq('status', 'DEVOLVIDO')
+            .gte('data_devolucao_real', inicioAno),
+          supabase
+            .from('alunos')
+            .select('matricula, turma_id'),
+        ])
 
         if (rankingData) {
+          const turmaPorMatricula = new Map<number, number | null>(
+            ((alunosTurma ?? []) as { matricula: number; turma_id: number | null }[])
+              .map(a => [a.matricula, a.turma_id]),
+          )
           const totaisGeral: Record<number, number> = {}
           const totaisTurma: Record<number, number> = {}
-          for (const r of rankingData as any[]) {
-            const m = r.matricula as number
+          for (const r of rankingData as { aluno_matricula: number }[]) {
+            const m = r.aluno_matricula
             totaisGeral[m] = (totaisGeral[m] ?? 0) + 1
-            if (alunoDetalhe.turma_id != null && r.turma_id === alunoDetalhe.turma_id) {
+            const tAluno = turmaPorMatricula.get(m) ?? null
+            if (alunoDetalhe.turma_id != null && tAluno === alunoDetalhe.turma_id) {
               totaisTurma[m] = (totaisTurma[m] ?? 0) + 1
             }
           }
@@ -276,6 +346,52 @@ export default function PassaporteAlunoPage() {
       }
     }
 
+    function aplicarPayload(p: PayloadPassaporte | null) {
+      if (!p || !p.aluno) {
+        setErro('Passaporte não encontrado.')
+        setCarregando(false)
+        return
+      }
+      const hoje = new Date().toISOString().split('T')[0]
+      const alunoDetalhe: Aluno = {
+        matricula: p.aluno.matricula,
+        nome: p.aluno.nome,
+        turma: p.aluno.turma ?? '',
+        turma_id: p.aluno.turma_id ?? null,
+        foto_url: p.aluno.foto_url ?? null,
+        ativo: p.aluno.ativo !== false,
+      }
+      setAluno(alunoDetalhe)
+
+      const lista: Carimbo[] = (p.carimbos ?? []).map(c => ({
+        emprestimo_id: c.emprestimo_id,
+        titulo: c.titulo ?? '(sem título)',
+        autor: c.autor ?? null,
+        tipo: c.tipo ?? null,
+        genero: c.genero ?? null,
+        imagem_url: c.imagem_url ?? null,
+        data_saida: c.data_saida,
+        data_devolucao_real: c.data_devolucao_real,
+        status: c.status as Carimbo['status'],
+        em_atraso:
+          (c.status === 'EMPRESTADO' || c.status === 'RENOVADO') &&
+          !!c.prazo_final &&
+          c.prazo_final < hoje,
+      }))
+      setCarimbos(lista)
+
+      if (p.ranking) {
+        setPosicao({
+          geral: p.ranking.geral ?? null,
+          geralTotal: p.ranking.geralTotal ?? 0,
+          turma: p.ranking.turma ?? null,
+          turmaTotal: p.ranking.turmaTotal ?? 0,
+          totalAluno: p.ranking.totalAluno ?? 0,
+        })
+      }
+      setCarregando(false)
+    }
+
     carregar()
   }, [matriculaNum])
 
@@ -284,6 +400,30 @@ export default function PassaporteAlunoPage() {
     [carimbos]
   )
   const proximo = useMemo(() => proximoSelo(selos), [selos])
+
+  async function baixarPDF() {
+    if (!aluno) return
+    setBaixandoPDF(true)
+    try {
+      const { exportarPassaportePDF } = await import('@/lib/exportarPassaportePDF')
+      await exportarPassaportePDF({
+        aluno: {
+          nome: aluno.nome,
+          matricula: aluno.matricula,
+          turma: aluno.turma,
+        },
+        resumo,
+        selos,
+        carimbos,
+        ranking: posicao,
+      })
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err)
+      alert('Não foi possível gerar o PDF. Tente novamente.')
+    } finally {
+      setBaixandoPDF(false)
+    }
+  }
 
   const distribuicaoTipo = useMemo(() => {
     const cont: Record<string, number> = {}
@@ -347,9 +487,20 @@ export default function PassaporteAlunoPage() {
             >
               ← Trocar passaporte
             </Link>
-            <p className="text-[11px] uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
-              Biblioteca Clarice Lispector
-            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={baixarPDF}
+                disabled={baixandoPDF}
+                className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
+              </button>
+              <p className="text-[11px] uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
+                Biblioteca Clarice Lispector
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-5">

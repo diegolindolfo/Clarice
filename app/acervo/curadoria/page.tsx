@@ -123,14 +123,46 @@ export default function CuradoriaAcervoPage() {
     }
   }
 
-  async function aplicarSugestao(alvo: AcervoRow, sugestao: SugestaoLivro, campos: Set<string>) {
+  async function aplicarSugestao(
+    alvo: AcervoRow,
+    sugestao: SugestaoLivro,
+    campos: Set<string>,
+    opcoes: { salvarNoServidor?: boolean } = {},
+  ) {
     if (campos.size === 0) return
 
     const updates: Record<string, string | null> = {}
     if (campos.has('autor') && sugestao.autor) updates.autor = sugestao.autor
     if (campos.has('editora') && sugestao.editora) updates.editora = sugestao.editora
     if (campos.has('genero') && sugestao.genero) updates.genero = sugestao.genero
-    if (campos.has('imagem_url') && sugestao.imagem_url) updates.imagem_url = sugestao.imagem_url
+
+    // Capa: se o usuario pediu pra salvar no servidor, tenta upload pro
+    // Supabase Storage e usa a URL interna. Se falhar, avisa e cai pra URL
+    // externa — melhor ter a capa externa do que nenhuma.
+    if (campos.has('imagem_url') && sugestao.imagem_url) {
+      let urlFinal = sugestao.imagem_url
+      if (opcoes.salvarNoServidor) {
+        try {
+          const resp = await fetch('/api/capas/salvar', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ url: sugestao.imagem_url, acervoId: alvo.id }),
+          })
+          const payload = (await resp.json()) as { url?: string; erro?: string }
+          if (!resp.ok || !payload.url) {
+            toast_error(
+              `Capa mantida externa (${payload.erro ?? 'upload falhou'})`,
+            )
+          } else {
+            urlFinal = payload.url
+          }
+        } catch (err) {
+          console.error('Erro ao salvar capa no servidor:', err)
+          toast_error('Capa mantida externa (falha no servidor)')
+        }
+      }
+      updates.imagem_url = urlFinal
+    }
 
     if (Object.keys(updates).length === 0) return
 
@@ -258,7 +290,7 @@ export default function CuradoriaAcervoPage() {
                   buscando={!!buscandoPor[item.id]}
                   sugestoes={sugestoesPor[item.id] ?? null}
                   onBuscar={() => buscarSugestoesPara(item)}
-                  onAplicar={(s, c) => aplicarSugestao(item, s, c)}
+                  onAplicar={(s, c, opcoes) => { void aplicarSugestao(item, s, c, opcoes) }}
                 />
               ))}
             </div>
@@ -415,7 +447,7 @@ function IncompletoCard({
   buscando: boolean
   sugestoes: SugestaoLivro[] | null
   onBuscar: () => void
-  onAplicar: (s: SugestaoLivro, campos: Set<string>) => void
+  onAplicar: (s: SugestaoLivro, campos: Set<string>, opcoes: { salvarNoServidor: boolean }) => void
 }) {
   const faltando: string[] = []
   if (!item.autor) faltando.push('autor')
@@ -479,7 +511,7 @@ function SugestaoLinha({
 }: {
   alvo: AcervoRow
   sugestao: SugestaoLivro
-  onAplicar: (s: SugestaoLivro, campos: Set<string>) => void
+  onAplicar: (s: SugestaoLivro, campos: Set<string>, opcoes: { salvarNoServidor: boolean }) => void
 }) {
   const camposDisponiveis: string[] = []
   // Só oferece sobrescrever um campo se o alvo estiver vazio e a sugestão tiver valor
@@ -489,6 +521,7 @@ function SugestaoLinha({
   if (!alvo.editora && sugestao.editora) camposDisponiveis.push('editora')
 
   const [selecionados, setSelecionados] = useState<Set<string>>(() => new Set(camposDisponiveis))
+  const [salvarNoServidor, setSalvarNoServidor] = useState(true)
 
   function toggle(campo: string) {
     setSelecionados(s => {
@@ -544,10 +577,25 @@ function SugestaoLinha({
             ))
           )}
         </div>
+
+        {selecionados.has('imagem_url') && (
+          <label
+            className="flex items-center gap-1 text-[10px] mt-1"
+            style={{ color: 'var(--text-muted)' }}
+            title="Baixa a imagem pro bucket 'capas' no Supabase Storage — não depende do CDN externo continuar no ar."
+          >
+            <input
+              type="checkbox"
+              checked={salvarNoServidor}
+              onChange={e => setSalvarNoServidor(e.target.checked)}
+            />
+            salvar capa no servidor
+          </label>
+        )}
       </div>
 
       <button
-        onClick={() => onAplicar(sugestao, selecionados)}
+        onClick={() => onAplicar(sugestao, selecionados, { salvarNoServidor })}
         disabled={selecionados.size === 0}
         className="text-[11px] px-3 py-1.5 rounded-lg nav-btn-primary disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
       >
