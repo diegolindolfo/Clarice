@@ -214,12 +214,15 @@ export default function PassaporteAlunoPage() {
               rpcErr.message ?? '',
             ))
 
-        if (!rpcErr && rpcData) {
-          aplicarPayload(rpcData as PayloadPassaporte)
+        // Se a RPC respondeu sem erro, confiamos no retorno (inclusive null =
+        // aluno nao encontrado) e NAO caimos pro fallback — se a RPC existe
+        // e que tem permissao anon, as queries diretas nao teriam.
+        if (!rpcErr) {
+          aplicarPayload(rpcData as PayloadPassaporte | null)
           return
         }
 
-        if (rpcErr && !rpcIndisponivel) throw rpcErr
+        if (!rpcIndisponivel) throw rpcErr
 
         // 2) Fallback: queries diretas (pre-migracao)
         const { data: alunoData, error: alunoErr } = await supabase
@@ -328,7 +331,7 @@ export default function PassaporteAlunoPage() {
       }
     }
 
-    function aplicarPayload(p: PayloadPassaporte) {
+    function aplicarPayload(p: PayloadPassaporte | null) {
       if (!p || !p.aluno) {
         setErro('Passaporte não encontrado.')
         setCarregando(false)

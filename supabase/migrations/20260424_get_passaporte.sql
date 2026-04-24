@@ -46,25 +46,36 @@ begin
     join acervo ac on ac.id = le.acervo_id
     where e.matricula = p_matricula
   ),
-  -- ranking anual: empréstimos DEVOLVIDOS no ano corrente, por aluno
-  totais as (
+  -- ranking anual: empréstimos DEVOLVIDOS no ano corrente.
+  -- Agregamos separadamente para geral e por turma: se um aluno mudou de
+  -- turma no meio do ano, seus emprestimos ficam em turma_ids diferentes,
+  -- mas o ranking geral ainda deve somar tudo num numero so por aluno.
+  totais_geral as (
     select
       e.matricula,
-      e.turma_id,
       count(*) as total
     from emprestimos e
     where e.status = 'DEVOLVIDO'
       and e.data_devolucao_real >= (date_trunc('year', current_date))::date
-    group by e.matricula, e.turma_id
+    group by e.matricula
+  ),
+  totais_turma as (
+    select
+      e.matricula,
+      count(*) as total
+    from emprestimos e
+    where e.status = 'DEVOLVIDO'
+      and e.data_devolucao_real >= (date_trunc('year', current_date))::date
+      and e.turma_id = v_turma_id
+    group by e.matricula
   ),
   rk_geral as (
     select matricula, total, row_number() over (order by total desc, matricula) as pos
-    from totais
+    from totais_geral
   ),
   rk_turma as (
     select matricula, total, row_number() over (order by total desc, matricula) as pos
-    from totais
-    where turma_id = v_turma_id
+    from totais_turma
   )
   select json_build_object(
     'aluno', (
@@ -102,7 +113,7 @@ begin
       'geralTotal', (select count(*) from rk_geral),
       'turma', (select pos from rk_turma where matricula = p_matricula),
       'turmaTotal', (select count(*) from rk_turma),
-      'totalAluno', coalesce((select total from totais where matricula = p_matricula), 0)
+      'totalAluno', coalesce((select total from totais_geral where matricula = p_matricula), 0)
     )
   )
   into v_result;
