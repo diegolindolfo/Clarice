@@ -251,12 +251,12 @@ export default function PassaporteAlunoPage() {
         const { data: empData, error: empErr } = await supabase
           .from('emprestimos')
           .select(`
-            id, status, data_saida, prazo_final, data_devolucao_real,
+            id, status, data_saida, data_devolucao_prevista, data_devolucao_renovada, data_devolucao_real,
             exemplar:livros_exemplares(
               acervo:acervo_id(titulo, autor, tipo, genero, imagem_url)
             )
           `)
-          .eq('matricula', matriculaNum)
+          .eq('aluno_matricula', matriculaNum)
           .order('data_saida', { ascending: false })
 
         if (empErr) throw empErr
@@ -264,10 +264,11 @@ export default function PassaporteAlunoPage() {
         const hoje = new Date().toISOString().split('T')[0]
         const lista: Carimbo[] = (empData ?? []).map((e: any) => {
           const acervo = e.exemplar?.acervo ?? {}
+          const prazoEfetivo = e.data_devolucao_renovada ?? e.data_devolucao_prevista ?? null
           const em_atraso =
             (e.status === 'EMPRESTADO' || e.status === 'RENOVADO') &&
-            e.prazo_final &&
-            e.prazo_final < hoje
+            prazoEfetivo != null &&
+            prazoEfetivo < hoje
           return {
             emprestimo_id: e.id,
             titulo: acervo.titulo ?? '(sem título)',
@@ -286,19 +287,33 @@ export default function PassaporteAlunoPage() {
         const anoAtual = new Date().getFullYear()
         const inicioAno = `${anoAtual}-01-01`
 
-        const { data: rankingData } = await supabase
-          .from('emprestimos')
-          .select('matricula, turma_id')
-          .eq('status', 'DEVOLVIDO')
-          .gte('data_devolucao_real', inicioAno)
+        // Pega aluno_matricula + (turma_id atual via alunos) pra reconstruir
+        // o ranking geral e por turma. emprestimos nao tem turma_id: a turma
+        // historica e `sala_na_data` (texto), mas pra ranking comparamos com
+        // a turma atual de cada aluno.
+        const [{ data: rankingData }, { data: alunosTurma }] = await Promise.all([
+          supabase
+            .from('emprestimos')
+            .select('aluno_matricula')
+            .eq('status', 'DEVOLVIDO')
+            .gte('data_devolucao_real', inicioAno),
+          supabase
+            .from('alunos')
+            .select('matricula, turma_id'),
+        ])
 
         if (rankingData) {
+          const turmaPorMatricula = new Map<number, number | null>(
+            ((alunosTurma ?? []) as { matricula: number; turma_id: number | null }[])
+              .map(a => [a.matricula, a.turma_id]),
+          )
           const totaisGeral: Record<number, number> = {}
           const totaisTurma: Record<number, number> = {}
-          for (const r of rankingData as any[]) {
-            const m = r.matricula as number
+          for (const r of rankingData as { aluno_matricula: number }[]) {
+            const m = r.aluno_matricula
             totaisGeral[m] = (totaisGeral[m] ?? 0) + 1
-            if (alunoDetalhe.turma_id != null && r.turma_id === alunoDetalhe.turma_id) {
+            const tAluno = turmaPorMatricula.get(m) ?? null
+            if (alunoDetalhe.turma_id != null && tAluno === alunoDetalhe.turma_id) {
               totaisTurma[m] = (totaisTurma[m] ?? 0) + 1
             }
           }
