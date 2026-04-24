@@ -100,9 +100,18 @@ export default function PassaporteLandingPage() {
           </button>
         </form>
 
-        <p className="text-center text-[11px] mt-6" style={{ color: 'var(--text-muted)' }}>
-          EEEP Professor José Augusto Torres
-        </p>
+        <div className="text-center mt-6 space-y-2">
+          <a
+            href="/buscar"
+            className="inline-block text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            Consultar acervo →
+          </a>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            EEEP Professor José Augusto Torres
+          </p>
+        </div>
       </div>
     </div>
   )
