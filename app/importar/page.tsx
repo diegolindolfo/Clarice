@@ -540,7 +540,7 @@ export default function ImportarPage() {
               }}
             >
               <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {turmasFaltantes.length} turma{turmasFaltantes.length > 1 ? 's' : ''} nova{turmasFaltantes.length > 1 ? 's' : ''} será{turmasFaltantes.length > 1 ? 'ão' : ''} criada{turmasFaltantes.length > 1 ? 's' : ''} automaticamente:
+                {turmasFaltantes.length} turma{turmasFaltantes.length > 1 ? 's' : ''} nova{turmasFaltantes.length > 1 ? 's' : ''} {turmasFaltantes.length > 1 ? 'serão' : 'será'} criada{turmasFaltantes.length > 1 ? 's' : ''} automaticamente:
               </span>{' '}
               {turmasFaltantes.slice(0, 20).join(', ')}
               {turmasFaltantes.length > 20 && ` e mais ${turmasFaltantes.length - 20}...`}
