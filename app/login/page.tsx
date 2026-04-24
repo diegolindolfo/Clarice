@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -87,6 +88,12 @@ export default function LoginPage() {
 
         <p className="text-center text-xs text-gray-400 mt-4">
           Acesso restrito à equipe da biblioteca
+        </p>
+        <p className="text-center text-xs text-gray-500 mt-6">
+          É aluno?{' '}
+          <Link href="/passaporte" className="underline hover:text-gray-700">
+            abrir passaporte de leitura
+          </Link>
         </p>
       </div>
     </div>
