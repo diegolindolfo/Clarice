@@ -333,6 +333,26 @@ export default function ImportarPage() {
 
     setImportando(false)
     setResultado({ sucesso, conflito, erro })
+
+    // Limpa o preview e o arquivo apos importar — evita segundo clique criar
+    // duplicatas (acervo usa insert, nao upsert) e forca nova selecao de CSV
+    // para importar de novo.
+    if (sucesso > 0) {
+      setLinhas([])
+      setArquivo(null)
+      // Tambem reatualiza o set de matriculas existentes para refletir as
+      // recem-inseridas em validacoes futuras na mesma sessao.
+      if (aba === 'alunos') {
+        const supabase = createClient()
+        supabase
+          .from('alunos')
+          .select('matricula')
+          .then(({ data }: any) => {
+            if (data) setMatriculasExistentes(new Set(data.map((x: any) => x.matricula)))
+          })
+      }
+    }
+
     if (sucesso > 0) toast_success(`${sucesso} registros importados`)
     if (erro > 0) toast_error(`${erro} registros falharam`)
   }
