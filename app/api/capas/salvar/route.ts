@@ -49,6 +49,29 @@ export async function POST(request: Request) {
     )
   }
 
+  // Evita path traversal / caracteres arbitrarios no caminho do Storage.
+  // acervo.id e uuid no schema atual.
+  const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!RE_UUID.test(acervoId)) {
+    return NextResponse.json(
+      { erro: 'acervoId deve ser UUID' },
+      { status: 400 },
+    )
+  }
+
+  // Garante que o titulo existe antes de subir bytes para o bucket.
+  const { data: alvo, error: alvoErr } = await supabase
+    .from('acervo')
+    .select('id')
+    .eq('id', acervoId)
+    .maybeSingle()
+  if (alvoErr || !alvo) {
+    return NextResponse.json(
+      { erro: 'Título não encontrado' },
+      { status: 404 },
+    )
+  }
+
   let parsed: URL
   try {
     parsed = new URL(url)
