@@ -140,9 +140,14 @@ export default function AcervoPage() {
                 {carregando ? '...' : `${total} título${total !== 1 ? 's' : ''}`}
               </p>
             </div>
-            <button onClick={() => router.push('/acervo/novo')} className="border text-xs px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-              + Novo
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => router.push('/acervo/curadoria')} className="text-xs px-3 py-1.5 rounded-lg hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }} title="Encontrar duplicatas e completar dados faltantes">
+                Curadoria
+              </button>
+              <button onClick={() => router.push('/acervo/novo')} className="border text-xs px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                + Novo
+              </button>
+            </div>
           </div>
 
           <input
