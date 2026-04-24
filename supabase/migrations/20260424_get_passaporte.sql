@@ -8,7 +8,7 @@
 -- │ selecionados aqui.                                                 │
 -- └───────────────────────────────────────────────────────────────────┘
 
-create or replace function public.get_passaporte(p_matricula int)
+create or replace function public.get_passaporte(p_matricula bigint)
 returns json
 language plpgsql
 security definer
@@ -19,7 +19,7 @@ declare
   v_result json;
   v_turma_id int;
 begin
-  -- aluno + turma_id (usado na query de ranking)
+  -- aluno + turma_id (usado na query de ranking). alunos.matricula e bigint.
   select a.turma_id into v_turma_id
   from alunos a
   where a.matricula = p_matricula;
@@ -29,13 +29,17 @@ begin
     return null;
   end if;
 
+  -- Nomes reais de coluna no schema: emprestimos.aluno_matricula,
+  -- data_devolucao_prevista (+ data_devolucao_renovada se renovado), e
+  -- turma e derivada do proprio aluno (emprestimos so guarda sala_na_data
+  -- como texto, nao serve pra ranking consistente por turma atual).
   with empr as (
     select
       e.id,
       e.status,
       e.data_saida,
       e.data_devolucao_real,
-      e.prazo_final,
+      coalesce(e.data_devolucao_renovada, e.data_devolucao_prevista) as prazo_final,
       ac.titulo,
       ac.autor,
       ac.tipo,
@@ -44,30 +48,31 @@ begin
     from emprestimos e
     join livros_exemplares le on le.id = e.exemplar_id
     join acervo ac on ac.id = le.acervo_id
-    where e.matricula = p_matricula
+    where e.aluno_matricula = p_matricula
   ),
   -- ranking anual: empréstimos DEVOLVIDOS no ano corrente.
-  -- Agregamos separadamente para geral e por turma: se um aluno mudou de
-  -- turma no meio do ano, seus emprestimos ficam em turma_ids diferentes,
-  -- mas o ranking geral ainda deve somar tudo num numero so por aluno.
+  -- Geral: conta todos os alunos ativos ou nao.
+  -- Por turma: compara com alunos que estao HOJE na mesma turma (turma_id
+  -- atual), nao com sala_na_data historica.
   totais_geral as (
     select
-      e.matricula,
+      e.aluno_matricula as matricula,
       count(*) as total
     from emprestimos e
     where e.status = 'DEVOLVIDO'
       and e.data_devolucao_real >= (date_trunc('year', current_date))::date
-    group by e.matricula
+    group by e.aluno_matricula
   ),
   totais_turma as (
     select
-      e.matricula,
+      e.aluno_matricula as matricula,
       count(*) as total
     from emprestimos e
+    join alunos al on al.matricula = e.aluno_matricula
     where e.status = 'DEVOLVIDO'
       and e.data_devolucao_real >= (date_trunc('year', current_date))::date
-      and e.turma_id = v_turma_id
-    group by e.matricula
+      and al.turma_id = v_turma_id
+    group by e.aluno_matricula
   ),
   rk_geral as (
     select matricula, total, row_number() over (order by total desc, matricula) as pos
@@ -123,5 +128,11 @@ end;
 $$;
 
 -- Permite execucao por anon e authenticated (a rota /passaporte e publica)
-revoke all on function public.get_passaporte(int) from public;
-grant execute on function public.get_passaporte(int) to anon, authenticated;
+revoke all on function public.get_passaporte(bigint) from public;
+grant execute on function public.get_passaporte(bigint) to anon, authenticated;
+
+-- Remove versao antiga (int) caso tenha sido criada por uma execucao anterior
+-- dessa mesma migration. Segue separado do drop-and-replace acima porque o
+-- tipo do parametro mudou (int -> bigint) e o Postgres trata como funcoes
+-- distintas.
+drop function if exists public.get_passaporte(int);
