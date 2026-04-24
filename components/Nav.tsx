@@ -10,6 +10,7 @@ const links = [
   { href: '/acervo',      label: 'Acervo' },
   { href: '/alunos',      label: 'Alunos' },
   { href: '/relatorios',  label: 'Relatórios' },
+  { href: '/importar',    label: 'Importar' },
 ]
 
 export default function Nav() {
