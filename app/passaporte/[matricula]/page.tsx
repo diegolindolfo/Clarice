@@ -67,6 +67,34 @@ function labelMesChave(mes: string): string {
   return `${MESES_PT_CURTO[(m - 1) % 12]}/${String(y).slice(-2)}`
 }
 
+// Normalizacao estilo MRZ (Machine Readable Zone) de passaporte real: so
+// [A-Z0-9<]. Espacos e caracteres nao permitidos viram '<'. Apenas visual
+// — nao precisa bater com o padrao ICAO 100%.
+function mrzClean(raw: string, tamanho: number): string {
+  const base = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '<')
+  return base.length >= tamanho ? base.slice(0, tamanho) : base + '<'.repeat(tamanho - base.length)
+}
+
+function mrzNome(nome: string): string {
+  const partes = nome.trim().split(/\s+/)
+  const sobrenome = partes.length > 1 ? partes.slice(1).join('<') : partes[0] ?? ''
+  const primeiro = partes.length > 1 ? partes[0] : ''
+  const cru = `${sobrenome}<<${primeiro}`
+  return mrzClean(cru, 30)
+}
+
+function mrzMatricula(matricula: number): string {
+  return mrzClean(String(matricula), 12)
+}
+
+function mrzTurma(turma: string | null | undefined): string {
+  return mrzClean(turma ?? '', 8)
+}
+
 function SeloCard({ selo }: { selo: Selo }) {
   const conquistado = selo.conquistado
   return (
@@ -112,10 +140,13 @@ function SeloCard({ selo }: { selo: Selo }) {
 function CarimboVisual({ carimbo }: { carimbo: Carimbo }) {
   const data = carimbo.data_devolucao_real ?? carimbo.data_saida
   const ativo = carimbo.status !== 'DEVOLVIDO'
+  const dataLabel = carimbo.status === 'DEVOLVIDO' && carimbo.data_devolucao_real
+    ? fmt(carimbo.data_devolucao_real)
+    : fmt(data)
 
   return (
     <div
-      className="rounded-xl border p-4 flex gap-3 items-start transition-colors"
+      className="relative rounded-xl border p-4 flex gap-3 items-start transition-colors"
       style={{
         backgroundColor: 'var(--bg-card)',
         borderColor: 'var(--border)',
@@ -139,8 +170,8 @@ function CarimboVisual({ carimbo }: { carimbo: Carimbo }) {
           <span className="px-1">{carimbo.tipo ?? 'Livro'}</span>
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0 pr-14">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-[13px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
             {carimbo.titulo}
           </p>
@@ -169,6 +200,20 @@ function CarimboVisual({ carimbo }: { carimbo: Carimbo }) {
             : `Retirado em ${fmt(data)}`}
           {carimbo.genero && <span> · {carimbo.genero}</span>}
         </p>
+      </div>
+      {/* Selo redondo estilo carimbo de passaporte */}
+      <div
+        aria-hidden
+        className="absolute top-3 right-3 w-12 h-12 rounded-full flex flex-col items-center justify-center text-center pointer-events-none select-none"
+        style={{
+          border: `1.5px double ${ativo ? 'var(--text-muted)' : 'var(--text-secondary)'}`,
+          color: ativo ? 'var(--text-muted)' : 'var(--text-secondary)',
+          transform: 'rotate(-8deg)',
+          opacity: 0.82,
+        }}
+      >
+        <span className="text-[8px] uppercase tracking-[0.15em] leading-none">lido</span>
+        <span className="text-[9px] font-mono leading-tight mt-0.5">{dataLabel}</span>
       </div>
     </div>
   )
@@ -473,67 +518,183 @@ export default function PassaporteAlunoPage() {
 
   return (
     <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--bg-page)' }}>
-      {/* Header / capa do passaporte */}
-      <header
-        className="border-b"
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-      >
-        <div className="max-w-4xl mx-auto px-6 pt-10 pb-8">
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <Link
-              href="/passaporte"
-              className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
-              style={{ color: 'var(--text-muted)' }}
+      {/* Capa do passaporte */}
+      <header className="border-b" style={{ borderColor: 'var(--border)' }}>
+        {/* Barra de ações */}
+        <div className="max-w-4xl mx-auto px-6 pt-6 flex items-center justify-between gap-4">
+          <Link
+            href="/passaporte"
+            className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ← Trocar passaporte
+          </Link>
+          <button
+            type="button"
+            onClick={baixarPDF}
+            disabled={baixandoPDF}
+            className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
+          </button>
+        </div>
+
+        {/* Corpo da capa (documento) */}
+        <div className="max-w-4xl mx-auto px-6 pt-6 pb-8">
+          <div
+            className="relative rounded-2xl border overflow-hidden"
+            style={{
+              borderColor: 'var(--border)',
+              backgroundColor: 'var(--bg-card)',
+              backgroundImage:
+                'radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--text-muted) 6%, transparent) 0, transparent 35%), radial-gradient(circle at 90% 85%, color-mix(in srgb, var(--text-muted) 5%, transparent) 0, transparent 40%)',
+            }}
+          >
+            {/* Faixa superior tipo capa de passaporte */}
+            <div
+              className="flex items-center justify-between px-5 py-2.5 border-b"
+              style={{
+                backgroundColor: 'var(--bg-muted)',
+                borderColor: 'var(--border)',
+              }}
             >
-              ← Trocar passaporte
-            </Link>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={baixarPDF}
-                disabled={baixandoPDF}
-                className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
-                style={{ color: 'var(--text-secondary)' }}
+              <p
+                className="text-[10px] uppercase tracking-[0.3em]"
+                style={{ color: 'var(--text-muted)' }}
               >
-                {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
-              </button>
-              <p className="text-[11px] uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
+                República da Leitura
+              </p>
+              <p
+                className="text-[10px] uppercase tracking-[0.3em]"
+                style={{ color: 'var(--text-muted)' }}
+              >
                 Biblioteca Clarice Lispector
               </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-5">
-            {aluno.foto_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={aluno.foto_url}
-                alt={aluno.nome}
-                className="w-20 h-20 rounded-full object-cover ring-4"
-                style={{ boxShadow: '0 0 0 4px var(--bg-card)' }}
-              />
-            ) : (
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium"
-                style={{ background: bg, color: tc }}
-              >
-                {iniciais(aluno.nome)}
+            {/* Dados do portador + foto 3x4 */}
+            <div className="px-5 sm:px-8 py-6 flex gap-5 sm:gap-7 items-start">
+              {/* Foto 3x4 com moldura estilo documento */}
+              <div className="shrink-0">
+                <div
+                  className="w-[92px] h-[122px] sm:w-[108px] sm:h-[144px] rounded-sm overflow-hidden relative"
+                  style={{
+                    backgroundColor: 'var(--bg-muted)',
+                    boxShadow:
+                      '0 0 0 1px var(--border), 0 0 0 5px var(--bg-card), 0 0 0 6px var(--border)',
+                  }}
+                >
+                  {aluno.foto_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={aluno.foto_url}
+                      alt={aluno.nome}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl font-medium"
+                      style={{
+                        background: bg,
+                        color: tc,
+                        fontFamily: "var(--font-dm-serif), serif",
+                      }}
+                    >
+                      {iniciais(aluno.nome)}
+                    </div>
+                  )}
+                </div>
+                <p
+                  className="text-[9px] font-mono text-center mt-2 uppercase tracking-[0.15em]"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  3 × 4
+                </p>
               </div>
-            )}
 
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--text-muted)' }}>
-                Passaporte de Leitura
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-[10px] uppercase tracking-[0.2em] mb-1"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Passaporte de Leitura
+                </p>
+                <h1
+                  className="text-2xl sm:text-3xl leading-tight mb-3"
+                  style={{
+                    fontFamily: "var(--font-dm-serif), serif",
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  {aluno.nome}
+                </h1>
+
+                <dl className="grid grid-cols-2 gap-x-5 gap-y-2 text-[11px]">
+                  <div>
+                    <dt
+                      className="uppercase tracking-[0.15em] text-[9px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Matrícula
+                    </dt>
+                    <dd className="font-mono mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                      {aluno.matricula}
+                    </dd>
+                  </div>
+                  {aluno.turma && (
+                    <div>
+                      <dt
+                        className="uppercase tracking-[0.15em] text-[9px]"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Turma
+                      </dt>
+                      <dd className="font-mono mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        {aluno.turma}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt
+                      className="uppercase tracking-[0.15em] text-[9px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Emissão
+                    </dt>
+                    <dd className="font-mono mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                      {fmt(new Date().toISOString().slice(0, 10))}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt
+                      className="uppercase tracking-[0.15em] text-[9px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Carimbos
+                    </dt>
+                    <dd className="font-mono mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                      {resumo.lidos}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            {/* Rodape tipo MRZ (Machine Readable Zone) */}
+            <div
+              className="px-5 sm:px-8 py-3 border-t font-mono text-[10px] sm:text-[11px] leading-snug tracking-[0.18em] break-all"
+              style={{
+                backgroundColor: 'var(--bg-muted)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <p>
+                P&lt;BRA{mrzNome(aluno.nome)}&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
               </p>
-              <h1
-                className="text-2xl sm:text-3xl leading-tight"
-                style={{ fontFamily: "var(--font-dm-serif), serif", color: 'var(--text-primary)' }}
-              >
-                {aluno.nome}
-              </h1>
-              <p className="text-xs mt-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                mat. {aluno.matricula}
-                {aluno.turma && <> · {aluno.turma}</>}
+              <p>
+                {mrzMatricula(aluno.matricula)}BRA{mrzTurma(aluno.turma)}&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
               </p>
             </div>
           </div>
