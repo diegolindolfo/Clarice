@@ -29,8 +29,9 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isLogin = pathname === '/login' || pathname.startsWith('/login/')
   const isPassaporte = pathname === '/passaporte' || pathname.startsWith('/passaporte/')
+  const isBuscaAcervo = pathname === '/buscar' || pathname.startsWith('/buscar/')
 
-  if (!user && !isLogin && !isPassaporte) {
+  if (!user && !isLogin && !isPassaporte && !isBuscaAcervo) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   if (user && isLogin) {

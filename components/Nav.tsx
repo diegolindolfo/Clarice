@@ -60,6 +60,7 @@ export default function Nav() {
 
   if (path === '/login') return null
   if (path === '/passaporte' || path.startsWith('/passaporte/')) return null
+  if (path === '/buscar' || path.startsWith('/buscar/')) return null
 
   return (
     <nav
