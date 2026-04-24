@@ -30,6 +30,36 @@ type Posicao = {
   totalAluno: number
 }
 
+type PayloadPassaporte = {
+  aluno: {
+    matricula: number
+    nome: string
+    turma: string | null
+    turma_id: number | null
+    foto_url: string | null
+    ativo: boolean
+  } | null
+  carimbos: Array<{
+    emprestimo_id: string
+    titulo: string | null
+    autor: string | null
+    tipo: string | null
+    genero: string | null
+    imagem_url: string | null
+    data_saida: string
+    data_devolucao_real: string | null
+    prazo_final: string | null
+    status: string
+  }>
+  ranking: {
+    geral: number | null
+    geralTotal: number
+    turma: number | null
+    turmaTotal: number
+    totalAluno: number
+  } | null
+}
+
 const MESES_PT_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 function labelMesChave(mes: string): string {
@@ -154,6 +184,7 @@ export default function PassaporteAlunoPage() {
   const [posicao, setPosicao] = useState<Posicao | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+  const [baixandoPDF, setBaixandoPDF] = useState(false)
 
   useEffect(() => {
     if (!Number.isFinite(matriculaNum)) {
@@ -168,6 +199,29 @@ export default function PassaporteAlunoPage() {
       try {
         const supabase = createClient()
 
+        // 1) Preferimos a RPC publica get_passaporte (security definer,
+        //    um unico round-trip). Se nao existir (schema antigo), caimos
+        //    pras queries diretas abaixo.
+        const { data: rpcData, error: rpcErr } = await supabase.rpc(
+          'get_passaporte',
+          { p_matricula: matriculaNum },
+        )
+
+        const rpcIndisponivel =
+          !!rpcErr &&
+          (rpcErr.code === 'PGRST202' ||
+            /function .* does not exist|could not find the function/i.test(
+              rpcErr.message ?? '',
+            ))
+
+        if (!rpcErr && rpcData) {
+          aplicarPayload(rpcData as PayloadPassaporte)
+          return
+        }
+
+        if (rpcErr && !rpcIndisponivel) throw rpcErr
+
+        // 2) Fallback: queries diretas (pre-migracao)
         const { data: alunoData, error: alunoErr } = await supabase
           .from('alunos')
           .select('matricula, nome, turma_id, foto_url, ativo, turmas(nome)')
@@ -191,7 +245,6 @@ export default function PassaporteAlunoPage() {
         }
         setAluno(alunoDetalhe)
 
-        // Empréstimos com dados do livro
         const { data: empData, error: empErr } = await supabase
           .from('emprestimos')
           .select(`
@@ -227,7 +280,6 @@ export default function PassaporteAlunoPage() {
         })
         setCarimbos(lista)
 
-        // Ranking: quantas vezes DEVOLVIDO por aluno, no ano atual
         const anoAtual = new Date().getFullYear()
         const inicioAno = `${anoAtual}-01-01`
 
@@ -276,6 +328,52 @@ export default function PassaporteAlunoPage() {
       }
     }
 
+    function aplicarPayload(p: PayloadPassaporte) {
+      if (!p || !p.aluno) {
+        setErro('Passaporte não encontrado.')
+        setCarregando(false)
+        return
+      }
+      const hoje = new Date().toISOString().split('T')[0]
+      const alunoDetalhe: Aluno = {
+        matricula: p.aluno.matricula,
+        nome: p.aluno.nome,
+        turma: p.aluno.turma ?? '',
+        turma_id: p.aluno.turma_id ?? null,
+        foto_url: p.aluno.foto_url ?? null,
+        ativo: p.aluno.ativo !== false,
+      }
+      setAluno(alunoDetalhe)
+
+      const lista: Carimbo[] = (p.carimbos ?? []).map(c => ({
+        emprestimo_id: c.emprestimo_id,
+        titulo: c.titulo ?? '(sem título)',
+        autor: c.autor ?? null,
+        tipo: c.tipo ?? null,
+        genero: c.genero ?? null,
+        imagem_url: c.imagem_url ?? null,
+        data_saida: c.data_saida,
+        data_devolucao_real: c.data_devolucao_real,
+        status: c.status as Carimbo['status'],
+        em_atraso:
+          (c.status === 'EMPRESTADO' || c.status === 'RENOVADO') &&
+          !!c.prazo_final &&
+          c.prazo_final < hoje,
+      }))
+      setCarimbos(lista)
+
+      if (p.ranking) {
+        setPosicao({
+          geral: p.ranking.geral ?? null,
+          geralTotal: p.ranking.geralTotal ?? 0,
+          turma: p.ranking.turma ?? null,
+          turmaTotal: p.ranking.turmaTotal ?? 0,
+          totalAluno: p.ranking.totalAluno ?? 0,
+        })
+      }
+      setCarregando(false)
+    }
+
     carregar()
   }, [matriculaNum])
 
@@ -284,6 +382,30 @@ export default function PassaporteAlunoPage() {
     [carimbos]
   )
   const proximo = useMemo(() => proximoSelo(selos), [selos])
+
+  async function baixarPDF() {
+    if (!aluno) return
+    setBaixandoPDF(true)
+    try {
+      const { exportarPassaportePDF } = await import('@/lib/exportarPassaportePDF')
+      await exportarPassaportePDF({
+        aluno: {
+          nome: aluno.nome,
+          matricula: aluno.matricula,
+          turma: aluno.turma,
+        },
+        resumo,
+        selos,
+        carimbos,
+        ranking: posicao,
+      })
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err)
+      alert('Não foi possível gerar o PDF. Tente novamente.')
+    } finally {
+      setBaixandoPDF(false)
+    }
+  }
 
   const distribuicaoTipo = useMemo(() => {
     const cont: Record<string, number> = {}
@@ -347,9 +469,20 @@ export default function PassaporteAlunoPage() {
             >
               ← Trocar passaporte
             </Link>
-            <p className="text-[11px] uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
-              Biblioteca Clarice Lispector
-            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={baixarPDF}
+                disabled={baixandoPDF}
+                className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
+              </button>
+              <p className="text-[11px] uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
+                Biblioteca Clarice Lispector
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-5">
