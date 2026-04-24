@@ -152,7 +152,7 @@ export default function ImportarPage() {
       } else {
         const normTurma = normalizarCabecalho(dados.turma)
         const achou = turmas.find(t => t.norm === normTurma)
-        if (!achou) erros.push(`turma "${dados.turma}" não encontrada`)
+        if (!achou) avisos.push(`turma "${dados.turma}" será criada`)
       }
 
       if (dados.email && !/^\S+@\S+\.\S+$/.test(dados.email)) {
@@ -248,7 +248,43 @@ export default function ImportarPage() {
     const supabase = createClient()
 
     if (aba === 'alunos') {
-      const porTurma = new Map(turmas.map(t => [t.norm, t.id]))
+      let porTurma = new Map(turmas.map(t => [t.norm, t.id]))
+
+      // 1) Cria turmas ausentes antes do upsert dos alunos (preservando o
+      //    primeiro nome com o capitalization original — normTurma nao volta
+      //    a ser humano).
+      const faltantes = new Map<string, string>()
+      for (const l of validas) {
+        const norm = normalizarCabecalho(l.dados.turma)
+        if (norm && !porTurma.has(norm) && !faltantes.has(norm)) {
+          faltantes.set(norm, l.dados.turma.trim())
+        }
+      }
+
+      if (faltantes.size > 0) {
+        const novas = Array.from(faltantes.values()).map(nome => ({ nome }))
+        const { data: criadas, error: errTurmas } = await supabase
+          .from('turmas')
+          .insert(novas)
+          .select('id, nome')
+
+        if (errTurmas || !criadas) {
+          console.error('Erro ao criar turmas faltantes:', errTurmas)
+          toast_error('Não foi possível criar turmas faltantes. Importação abortada.')
+          setImportando(false)
+          return
+        }
+
+        const novasTurmasState: Turma[] = criadas.map((x: { id: number; nome: string }) => ({
+          id: x.id, nome: x.nome, norm: normalizarCabecalho(x.nome),
+        }))
+        setTurmas(prev => [...prev, ...novasTurmasState])
+        porTurma = new Map([
+          ...porTurma,
+          ...novasTurmasState.map(t => [t.norm, t.id] as [string, number]),
+        ])
+      }
+
       const payload = validas.map(l => ({
         matricula: Number(l.dados.matricula.replace(/\D+/g, '')),
         nome: l.dados.nome.trim(),
@@ -387,6 +423,23 @@ export default function ImportarPage() {
     comAvisos: linhas.filter(l => l.avisos.length > 0).length,
   }), [linhas])
 
+  // Turmas novas que seriam criadas ao importar (apenas aba de alunos,
+  // considerando somente linhas validas).
+  const turmasFaltantes = useMemo(() => {
+    if (aba !== 'alunos') return [] as string[]
+    const existentes = new Set(turmas.map(t => t.norm))
+    const vistas = new Set<string>()
+    const resultado: string[] = []
+    for (const l of linhas) {
+      if (!l.valido || !l.dados.turma) continue
+      const norm = normalizarCabecalho(l.dados.turma)
+      if (existentes.has(norm) || vistas.has(norm)) continue
+      vistas.add(norm)
+      resultado.push(l.dados.turma.trim())
+    }
+    return resultado
+  }, [aba, linhas, turmas])
+
   const colunasPreview = aba === 'alunos'
     ? ['matricula', 'nome', 'turma', 'email']
     : ['titulo', 'autor', 'tipo', 'tombo']
@@ -444,7 +497,7 @@ export default function ImportarPage() {
 
         <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>
           {aba === 'alunos'
-            ? 'Colunas esperadas: matricula, nome, turma, email (opcional). Matrículas já existentes serão atualizadas.'
+            ? 'Colunas esperadas: matricula, nome, turma, email (opcional). Matrículas já existentes serão atualizadas. Turmas ainda não cadastradas serão criadas automaticamente.'
             : 'Colunas esperadas: titulo (obrigatório), autor, editora, tipo, genero, cdd, tombo, etc. Se informar tombo, 1 exemplar é criado.'}
         </p>
       </section>
@@ -475,6 +528,24 @@ export default function ImportarPage() {
               <p className="text-[11px] mt-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Com avisos</p>
             </div>
           </div>
+
+          {/* Aviso de turmas que serão criadas */}
+          {turmasFaltantes.length > 0 && (
+            <div
+              className="rounded-xl border px-4 py-3 mb-4 text-xs"
+              style={{
+                backgroundColor: 'var(--bg-muted)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                {turmasFaltantes.length} turma{turmasFaltantes.length > 1 ? 's' : ''} nova{turmasFaltantes.length > 1 ? 's' : ''} {turmasFaltantes.length > 1 ? 'serão' : 'será'} criada{turmasFaltantes.length > 1 ? 's' : ''} automaticamente:
+              </span>{' '}
+              {turmasFaltantes.slice(0, 20).join(', ')}
+              {turmasFaltantes.length > 20 && ` e mais ${turmasFaltantes.length - 20}...`}
+            </div>
+          )}
 
           {/* Botão importar */}
           <div className="flex items-center gap-3 mb-4">
