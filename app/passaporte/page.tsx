@@ -22,19 +22,23 @@ export default function PassaporteLandingPage() {
 
     setCarregando(true)
     try {
+      // Usa RPC dedicada (security definer) em vez de select direto em
+      // `alunos` com a anon key. Reduz superficie de leitura publica e
+      // permite rate-limit/throttle no servidor sem expor a tabela.
       const supabase = createClient()
-      const { data } = await supabase
-        .from('alunos')
-        .select('matricula, ativo')
-        .eq('matricula', Number(limpa))
-        .maybeSingle()
+      const { data, error } = await supabase.rpc('check_matricula', {
+        p_matricula: Number(limpa),
+      })
 
-      if (!data) {
+      if (error) throw error
+
+      const info = data as { existe: boolean; ativo: boolean } | null
+      if (!info?.existe) {
         setErro('Matrícula não encontrada.')
         setCarregando(false)
         return
       }
-      if (data.ativo === false) {
+      if (!info.ativo) {
         setErro('Matrícula inativa. Procure a biblioteca.')
         setCarregando(false)
         return

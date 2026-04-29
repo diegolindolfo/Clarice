@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { fmt, corAvatar, iniciais } from '@/lib/utils'
 import ModalEditarAluno from '@/components/ModalEditarAluno'
@@ -26,17 +26,39 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
   const [filtro, setFiltro]           = useState<'todos' | 'abertos' | 'historico'>('todos')
   const [editando, setEditando]       = useState(false)
 
-  useEffect(() => { setCarregando(true); carregar() }, [aluno.matricula])
-
-  async function carregar() {
+  // `carregar` declarada antes do useEffect para satisfazer o lint do
+  // react-hooks v7 ("acesso antes da declaracao") e evitar referencia
+  // capturada por TDZ. A funcao e estavel em relacao a `aluno.matricula`
+  // (unica dependencia externa que importa).
+  const carregar = useCallback(async () => {
+    setCarregando(true)
     const supabase = createClient()
     const { data } = await supabase
-      .from('vw_painel_aluno').select('*').eq('matricula', aluno.matricula).order('data_saida', { ascending: false })
+      .from('vw_painel_aluno')
+      .select('*')
+      .eq('matricula', aluno.matricula)
+      .order('data_saida', { ascending: false })
 
-    const lista: Emprestimo[] = (data ?? []).map((e: any) => ({
-      emprestimo_id: e.emprestimo_id, titulo: e.titulo, autor: e.autor,
-      data_saida: e.data_saida, prazo_final: e.prazo_final,
-      data_devolucao_real: e.data_devolucao_real, status: e.status, em_atraso: e.em_atraso,
+    type EmprestimoRow = {
+      emprestimo_id: string
+      titulo: string
+      autor: string
+      data_saida: string
+      prazo_final: string
+      data_devolucao_real: string | null
+      status: Emprestimo['status']
+      em_atraso: boolean
+    }
+
+    const lista: Emprestimo[] = ((data ?? []) as EmprestimoRow[]).map(e => ({
+      emprestimo_id: e.emprestimo_id,
+      titulo: e.titulo,
+      autor: e.autor,
+      data_saida: e.data_saida,
+      prazo_final: e.prazo_final,
+      data_devolucao_real: e.data_devolucao_real,
+      status: e.status,
+      em_atraso: e.em_atraso,
     }))
 
     setEmprestimos(lista)
@@ -47,7 +69,9 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
       devolvidos: lista.filter(e => e.status === 'DEVOLVIDO').length,
     })
     setCarregando(false)
-  }
+  }, [aluno.matricula])
+
+  useEffect(() => { carregar() }, [carregar])
 
   const listaFiltrada = emprestimos.filter(e =>
     filtro === 'abertos' ? e.status !== 'DEVOLVIDO' :

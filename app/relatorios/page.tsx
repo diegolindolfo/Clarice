@@ -154,7 +154,7 @@ export default function RelatoriosPage() {
           margin: { left: 14, right: 14 },
         })
 
-        y = (doc as any).lastAutoTable.finalY + 10
+        y = doc.lastAutoTable.finalY + 10
       }
 
       // Turmas mais ativas
@@ -172,7 +172,7 @@ export default function RelatoriosPage() {
           margin: { left: 14, right: 14 },
         })
 
-        y = (doc as any).lastAutoTable.finalY + 10
+        y = doc.lastAutoTable.finalY + 10
       }
 
       // Top leitores
@@ -192,7 +192,7 @@ export default function RelatoriosPage() {
       }
 
       // Footer
-      const totalPaginas = (doc as any).internal.getNumberOfPages()
+      const totalPaginas = doc.getNumberOfPages()
       for (let i = 1; i <= totalPaginas; i++) {
         doc.setPage(i); doc.setFontSize(7); doc.setTextColor(150)
         doc.text(`Clarice — Biblioteca Escolar  ·  ${resumo.label}  ·  Página ${i} de ${totalPaginas}`, 105, 290, { align: 'center' })

@@ -64,51 +64,94 @@ function NovoEmprestimoForm() {
     return () => clearTimeout(t)
   }, [buscaLivro])
 
-  // CORRIGIDO: searchParams adicionado às deps do useEffect
+  // Pre-popula o formulario quando a rota recebe ?matricula=… ou ?acervo_id=…
+  // (ou ambos). Antes os dois fetchs disparavam em paralelo e cada `.then`
+  // chamava setEtapa(), causando corrida na ordem final da etapa. Agora
+  // resolvemos os dois com Promise.all e decidimos a etapa em um unico ponto.
   useEffect(() => {
     const supabase = createClient()
     const matriculaParam = searchParams.get('matricula')
     const acervoId       = searchParams.get('acervo_id')
+    if (!matriculaParam && !acervoId) return
 
-    if (matriculaParam) {
-      supabase
-        .from('alunos')
-        .select('matricula, nome, turmas(nome)')
-        .eq('matricula', Number(matriculaParam))
-        .single()
-        .then(({ data }: any) => {
-          if (!data) return
-          setAlunoSelecionado({
-            matricula: data.matricula,
-            nome: data.nome,
-            turma: (data.turmas as any)?.nome ?? '',
-            em_atraso: false,
-          })
-          setEtapa('livro')
-        })
+    let cancelado = false
+
+    async function preencher() {
+      const tarefas: Promise<unknown>[] = []
+
+      type AlunoRow = {
+        matricula: number
+        nome: string
+        turmas: { nome: string } | { nome: string }[] | null
+      }
+      type ExemplarRow = {
+        id: string
+        tombo: number | null
+        acervo:
+          | { titulo: string; autor: string | null }
+          | { titulo: string; autor: string | null }[]
+      }
+
+      if (matriculaParam) {
+        tarefas.push(
+          supabase
+            .from('alunos')
+            .select('matricula, nome, turmas(nome)')
+            .eq('matricula', Number(matriculaParam))
+            .maybeSingle()
+            .then(({ data }: { data: AlunoRow | null }) => {
+              if (cancelado || !data) return
+              const turma = Array.isArray(data.turmas)
+                ? data.turmas[0]?.nome ?? ''
+                : data.turmas?.nome ?? ''
+              setAlunoSelecionado({
+                matricula: data.matricula,
+                nome: data.nome,
+                turma,
+                em_atraso: false,
+              })
+            }),
+        )
+      }
+
+      if (acervoId) {
+        tarefas.push(
+          supabase
+            .from('livros_exemplares')
+            .select('id, tombo, disponivel, acervo:acervo_id(titulo, autor)')
+            .eq('acervo_id', acervoId)
+            .eq('disponivel', true)
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }: { data: ExemplarRow | null }) => {
+              if (cancelado || !data) return
+              const acervo = Array.isArray(data.acervo) ? data.acervo[0] : data.acervo
+              setLivroSelecionado({
+                exemplar_id: data.id,
+                tombo: data.tombo,
+                titulo: acervo.titulo,
+                autor: acervo.autor ?? '',
+                disponivel: true,
+              })
+            }),
+        )
+      }
+
+      await Promise.all(tarefas)
+      if (cancelado) return
+
+      // Determina a etapa em um unico lugar (depois que os dois fetchs
+      // terminaram). Prioridade: se ja temos os dois, vai pra confirmar;
+      // se so aluno, vai pra livro; se so livro, vai pra aluno.
+      const temAluno = !!matriculaParam
+      const temLivro = !!acervoId
+      if (temAluno && temLivro) setEtapa('confirmar')
+      else if (temAluno) setEtapa('livro')
+      else if (temLivro) setEtapa('aluno')
     }
 
-    if (acervoId) {
-      supabase
-        .from('livros_exemplares')
-        .select('id, tombo, disponivel, acervo:acervo_id(titulo, autor)')
-        .eq('acervo_id', acervoId)
-        .eq('disponivel', true)
-        .limit(1)
-        .single()
-        .then(({ data }: any) => {
-          if (!data) return
-          const acervo = data.acervo as any
-          setLivroSelecionado({
-            exemplar_id: data.id,
-            tombo: data.tombo,
-            titulo: acervo.titulo,
-            autor: acervo.autor ?? '',
-            disponivel: true,
-          })
-          setEtapa('aluno')
-        })
-    }
+    preencher()
+    return () => { cancelado = true }
   }, [searchParams])
 
   // Busca de alunos com debounce
