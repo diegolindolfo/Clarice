@@ -1,8 +1,24 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useSyncExternalStore } from 'react'
+// (useRef apenas para o menu mobile)
 import { createClient } from '@/lib/supabase'
+
+// Subscribe ao atributo data-theme do <html>. Usado em vez de useEffect+setState
+// pra ler estado externo (DOM) de forma compatível com SSR e satisfazendo o
+// react-hooks/set-state-in-effect do React 19.
+function subscribeTheme(callback: () => void) {
+  const observer = new MutationObserver(callback)
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  })
+  return () => observer.disconnect()
+}
+const getTheme = () =>
+  document.documentElement.getAttribute('data-theme') === 'dark'
+const getThemeServer = () => false
 
 const links = [
   { href: '/dashboard',   label: 'Dashboard' },
@@ -17,16 +33,27 @@ export default function Nav() {
   const path = usePathname()
   const router = useRouter()
   const [email, setEmail] = useState<string | null>(null)
-  const [dark, setDark] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
+  // Lemos o tema direto do DOM via store externa, em vez de manter um state
+  // duplicado sincronizado por useEffect.
+  const dark = useSyncExternalStore(subscribeTheme, getTheme, getThemeServer)
+
+  // Fechar menu ao navegar. Esse é um caso válido de setState em effect:
+  // a rota muda externamente (clique em Link/back-button) e queremos
+  // sincronizar nosso estado interno (menu aberto). Outras soluções
+  // (onClick em cada Link, store global) seriam mais complexas e frágeis.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setMenuOpen(false) }, [path])
+
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }: any) => {
-      setEmail(data.user?.email ?? null)
+    let ativo = true
+    supabase.auth.getUser().then(({ data }: { data: { user: { email?: string | null } | null } }) => {
+      if (ativo) setEmail(data.user?.email ?? null)
     })
-    setDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    return () => { ativo = false }
   }, [])
 
   // Fechar menu ao clicar fora
@@ -41,14 +68,11 @@ export default function Nav() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
-  // Fechar menu ao navegar
-  useEffect(() => { setMenuOpen(false) }, [path])
-
   function alternarTema() {
     const novo = !dark
-    setDark(novo)
     document.documentElement.setAttribute('data-theme', novo ? 'dark' : 'light')
     localStorage.setItem('clarice-theme', novo ? 'dark' : 'light')
+    // O useSyncExternalStore acima reage à mudança do atributo via MutationObserver
   }
 
   async function sair() {

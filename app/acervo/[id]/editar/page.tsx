@@ -68,12 +68,20 @@ export default function EditarAcervoPage() {
         imagem_url: livro.imagem_url ?? '',
       })
 
-      setExemplares((exs ?? []).map((ex: any) => ({
+      type ExemplarRow = {
+        id: string
+        tombo: number | null
+        volume: number | string | null
+        edicao: number | string | null
+        aquisicao: string | null
+        data_cadastro: string | null
+      }
+      setExemplares(((exs ?? []) as ExemplarRow[]).map(ex => ({
         id:             ex.id,
         key:            ex.id,
         tombo:          ex.tombo?.toString() ?? '',
-        volume:         ex.volume ?? '',
-        edicao:         ex.edicao ?? '',
+        volume:         ex.volume?.toString() ?? '',
+        edicao:         ex.edicao?.toString() ?? '',
         aquisicao:      ex.aquisicao ?? 'compra',
         data_cadastro:  ex.data_cadastro?.split('T')[0] ?? '',
       })))

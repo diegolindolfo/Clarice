@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { corAvatar, iniciais, sanitizeBusca } from '@/lib/utils'
 import Chip from '@/components/Chip'
 import PainelAluno from './PainelAluno'
+import { pickRelation, type AlunoComTurma, type ViewEmprestimoAtrasado } from '@/types/database'
 
 type Aluno = {
   matricula: number; nome: string; turma: string; turma_id: number
@@ -68,7 +69,7 @@ function AlunosContent() {
           .select('id')
           .ilike('nome', `${serie[0]}º%`)
         if (turmaIds && turmaIds.length > 0) {
-          query = query.in('turma_id', turmaIds.map((t: any) => t.id))
+          query = query.in('turma_id', (turmaIds as { id: number }[]).map(t => t.id))
         }
       }
 
@@ -76,17 +77,26 @@ function AlunosContent() {
       if (error) throw error
       if (!data) { setCarregando(false); return }
 
-      const matriculas = data.map((a: any) => a.matricula)
+      type AlunoQueryRow = Pick<AlunoComTurma, 'matricula' | 'nome' | 'turma_id' | 'foto_url' | 'ativo' | 'turmas'> & { email: string | null }
+      const rows = data as AlunoQueryRow[]
+      const matriculas = rows.map(a => a.matricula)
       const { data: atrasados } = matriculas.length
         ? await supabase.from('vw_emprestimos_atrasados').select('matricula').in('matricula', matriculas)
         : { data: [] }
 
-      const atrasadosSet = new Set(atrasados?.map((a: any) => a.matricula) ?? [])
+      const atrasadosSet = new Set(
+        ((atrasados ?? []) as Pick<ViewEmprestimoAtrasado, 'matricula'>[]).map(a => a.matricula),
+      )
 
-      const lista: Aluno[] = data.map((a: any) => ({
-        matricula: a.matricula, nome: a.nome, turma: (a.turmas as any)?.nome ?? '',
-        turma_id: a.turma_id, email: a.email, ativo: a.ativo,
-        em_atraso: atrasadosSet.has(a.matricula), foto_url: a.foto_url,
+      const lista: Aluno[] = rows.map(a => ({
+        matricula: a.matricula,
+        nome: a.nome,
+        turma: pickRelation(a.turmas)?.nome ?? '',
+        turma_id: a.turma_id ?? 0,
+        email: a.email,
+        ativo: a.ativo,
+        em_atraso: atrasadosSet.has(a.matricula),
+        foto_url: a.foto_url,
       }))
 
       setAlunos(lista)
@@ -94,7 +104,7 @@ function AlunosContent() {
       // Pré-seleciona aluno via query param (?matricula=...)
       const matriculaParam = searchParams.get('matricula')
       if (matriculaParam && !selecionadoRef.current) {
-        const encontrado = lista.find((a: any) => a.matricula === Number(matriculaParam))
+        const encontrado = lista.find(a => a.matricula === Number(matriculaParam))
         if (encontrado) setSelecionado(encontrado)
       }
 

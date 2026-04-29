@@ -9,7 +9,7 @@ type Aluno = { matricula: number; nome: string; turma: string; email: string | n
 type Emprestimo = {
   emprestimo_id: string; titulo: string; autor: string
   data_saida: string; prazo_final: string; data_devolucao_real: string | null
-  status: string; em_atraso: boolean
+  status: string; em_atraso: boolean; dias_atraso: number
 }
 
 type Stats = { total: number; abertos: number; atrasados: number; devolvidos: number }
@@ -50,6 +50,9 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
       em_atraso: boolean
     }
 
+    // Calculamos dias de atraso aqui (uma vez, no fetch) em vez de no JSX,
+    // pra não chamar Date.now() durante render — react-hooks/purity.
+    const agora = Date.now()
     const lista: Emprestimo[] = ((data ?? []) as EmprestimoRow[]).map(e => ({
       emprestimo_id: e.emprestimo_id,
       titulo: e.titulo,
@@ -59,6 +62,9 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
       data_devolucao_real: e.data_devolucao_real,
       status: e.status,
       em_atraso: e.em_atraso,
+      dias_atraso: e.em_atraso
+        ? Math.max(0, Math.floor((agora - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000))
+        : 0,
     }))
 
     setEmprestimos(lista)
@@ -71,6 +77,10 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
     setCarregando(false)
   }, [aluno.matricula])
 
+  // Fetch on mount + sempre que mudar o aluno (carregar e estavel via useCallback).
+  // O setState aqui e o data-fetch legitimo - o lint react-hooks v7 e
+  // overzealous nesses casos.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { carregar() }, [carregar])
 
   const listaFiltrada = emprestimos.filter(e =>
@@ -155,7 +165,7 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
               </span>
               {e.em_atraso && (
                 <span className="text-xs text-red-600">
-                  {Math.floor((Date.now() - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000)}d atraso
+                  {e.dias_atraso}d atraso
                 </span>
               )}
             </div>

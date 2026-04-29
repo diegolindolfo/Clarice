@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { fmt } from '@/lib/utils'
 import { toast_success, toast_error } from '@/components/Toast'
@@ -38,7 +38,8 @@ export default function RelatoriosPage() {
   const [carregando, setCarregando]   = useState(true)
   const [exportando, setExportando]   = useState(false)
 
-  const mesesDisponiveis = gerarMeses(6)
+  // Memoizado para satisfazer exhaustive-deps no useCallback abaixo.
+  const mesesDisponiveis = useMemo(() => gerarMeses(6), [])
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -59,9 +60,13 @@ export default function RelatoriosPage() {
         supabase.from('vw_painel_aluno').select('aluno_nome, turma, matricula').gte('data_saida', inicio).lte('data_saida', fim),
       ])
 
+      type LivroRow = { titulo: string | null; autor: string | null }
+      type TurmaRow = { turma: string | null }
+      type AlunoRow = { aluno_nome: string | null; turma: string | null; matricula: number | null }
+
       // Contabilizar livros top
       const livrosMap: Record<string, { titulo: string; autor: string; total: number }> = {}
-      ;(livrosRes.data ?? []).forEach((e: any) => {
+      ;((livrosRes.data ?? []) as LivroRow[]).forEach(e => {
         const key = e.titulo ?? ''
         if (!livrosMap[key]) livrosMap[key] = { titulo: key, autor: e.autor ?? '', total: 0 }
         livrosMap[key].total++
@@ -70,12 +75,12 @@ export default function RelatoriosPage() {
 
       // Turmas
       const turmasMap: Record<string, number> = {}
-      ;(turmasRes.data ?? []).forEach((e: any) => { turmasMap[e.turma ?? ''] = (turmasMap[e.turma ?? ''] ?? 0) + 1 })
+      ;((turmasRes.data ?? []) as TurmaRow[]).forEach(e => { turmasMap[e.turma ?? ''] = (turmasMap[e.turma ?? ''] ?? 0) + 1 })
       const turmasTop = Object.entries(turmasMap).map(([t, n]) => ({ turma: t, total: n })).sort((a, b) => b.total - a.total).slice(0, 5)
 
       // Alunos
       const alunosMap: Record<number, { nome: string; turma: string; total: number }> = {}
-      ;(alunosRes.data ?? []).forEach((e: any) => {
+      ;((alunosRes.data ?? []) as AlunoRow[]).forEach(e => {
         if (!e.matricula) return
         if (!alunosMap[e.matricula]) alunosMap[e.matricula] = { nome: e.aluno_nome ?? '', turma: e.turma ?? '', total: 0 }
         alunosMap[e.matricula].total++
@@ -98,13 +103,14 @@ export default function RelatoriosPage() {
     const resultados = await Promise.all(mesesDisponiveis.map(carregarMes))
 
     setResumos(resultados)
-    if (!mesSelecionado) setMesSelecionado(mesesDisponiveis[0])
     setCarregando(false)
-  }, [])
+  }, [mesesDisponiveis])
 
   useEffect(() => { carregar() }, [carregar])
 
-  const resumo = resumos.find(r => r.mes === mesSelecionado)
+  // Default para o primeiro mês; não precisa virar state, é derivado.
+  const mesAtivo = mesSelecionado || mesesDisponiveis[0]
+  const resumo = resumos.find(r => r.mes === mesAtivo)
 
   async function exportarPDF() {
     if (!resumo) return
@@ -200,8 +206,8 @@ export default function RelatoriosPage() {
 
       doc.save(`relatorio_${resumo.mes}.pdf`)
       toast_success('Relatório PDF gerado com sucesso!')
-    } catch (e: any) {
-      toast_error(e.message ?? 'Erro ao gerar PDF')
+    } catch (e: unknown) {
+      toast_error(e instanceof Error ? e.message : 'Erro ao gerar PDF')
     } finally {
       setExportando(false)
     }
@@ -230,11 +236,11 @@ export default function RelatoriosPage() {
             key={m}
             onClick={() => setMesSelecionado(m)}
             className={`text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
-              mesSelecionado === m
+              mesAtivo === m
                 ? 'border-gray-400 bg-gray-100 font-medium'
                 : 'border-gray-200 hover:border-gray-300'
             }`}
-            style={{ color: mesSelecionado === m ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+            style={{ color: mesAtivo === m ? 'var(--text-primary)' : 'var(--text-secondary)' }}
           >
             {mesLabel(m)}
           </button>
@@ -341,7 +347,7 @@ export default function RelatoriosPage() {
                 </thead>
                 <tbody>
                   {resumos.map(r => (
-                    <tr key={r.mes} className={`border-t ${r.mes === mesSelecionado ? 'bg-blue-50' : ''}`}>
+                    <tr key={r.mes} className={`border-t ${r.mes === mesAtivo ? 'bg-blue-50' : ''}`}>
                       <td className="px-4 py-2 font-medium">{r.label}</td>
                       <td className="px-4 py-2 text-center font-mono">{r.emprestimos}</td>
                       <td className="px-4 py-2 text-center font-mono">{r.devolucoes}</td>

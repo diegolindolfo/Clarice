@@ -145,8 +145,8 @@ function EmprestimosContent() {
       }
       await exportarAtrasadosPDF(data as AtrasadoPDF[])
       toast_success('PDF de atrasados gerado com sucesso!')
-    } catch (e: any) {
-      toast_error(e.message ?? 'Erro ao gerar PDF.')
+    } catch (e: unknown) {
+      toast_error(e instanceof Error ? e.message : 'Erro ao gerar PDF.')
     } finally {
       setExportando(false)
     }

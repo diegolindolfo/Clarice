@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -105,13 +106,13 @@ export default function PassaporteLandingPage() {
         </form>
 
         <div className="text-center mt-6 space-y-2">
-          <a
+          <Link
             href="/buscar"
             className="inline-block text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
             style={{ color: 'var(--text-secondary)' }}
           >
             Consultar acervo →
-          </a>
+          </Link>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
             EEEP Professor José Augusto Torres
           </p>

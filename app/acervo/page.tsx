@@ -78,7 +78,7 @@ export default function AcervoPage() {
           .or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%,cdd.ilike.%${termo}%`)
           .limit(100)
 
-        const listaIds = ids?.map((r: any) => r.id) ?? []
+        const listaIds = (ids as { id: string }[] | null)?.map(r => r.id) ?? []
         if (listaIds.length === 0) { setLivros([]); setTotal(0); setCarregando(false); return }
         query = query.in('id', listaIds)
       }
