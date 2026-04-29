@@ -37,7 +37,7 @@ export default function ModalEditarAluno({ aluno, onFechar, onSalvar }: Props) {
       setTurmas(data ?? [])
 
       // Pré-selecionar a turma atual
-      const match = (data ?? []).find((t: any) => t.nome === aluno.turma)
+      const match = ((data ?? []) as Turma[]).find(t => t.nome === aluno.turma)
       if (match) setTurmaId(match.id)
     }
     carregar()
@@ -77,7 +77,7 @@ export default function ModalEditarAluno({ aluno, onFechar, onSalvar }: Props) {
 
     const supabase = createClient()
 
-    const updates: Record<string, any> = {
+    const updates: { nome: string; email: string | null; turma_id?: number } = {
       nome: nome.trim(),
       email: email.trim() || null,
     }

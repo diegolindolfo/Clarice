@@ -4,6 +4,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { iniciais, sanitizeBusca } from '@/lib/utils'
 import { toast_success } from '@/components/Toast'
+import {
+  pickRelation,
+  type AlunoComTurma,
+  type LivroExemplarComAcervo,
+  type AcervoRow,
+  type ViewEmprestimoAtrasado,
+} from '@/types/database'
 
 type Aluno = {
   matricula: number
@@ -44,13 +51,20 @@ function NovoEmprestimoForm() {
 
   const [buscaAluno, setBuscaAluno]                       = useState('')
   const [buscaAlunoDebounced, setBuscaAlunoDebounced]     = useState('')
-  const [alunos, setAlunos]                               = useState<Aluno[]>([])
+  const [alunosResultado, setAlunosResultado]             = useState<Aluno[]>([])
   const [alunoSelecionado, setAlunoSelecionado]           = useState<Aluno | null>(null)
 
   const [buscaLivro, setBuscaLivro]                       = useState('')
   const [buscaLivroDebounced, setBuscaLivroDebounced]     = useState('')
-  const [livros, setLivros]                               = useState<Livro[]>([])
+  const [livrosResultado, setLivrosResultado]             = useState<Livro[]>([])
   const [livroSelecionado, setLivroSelecionado]           = useState<Livro | null>(null)
+
+  // Derivamos a lista exibida do termo debounced. Antes o effect setava
+  // setAlunosResultado([]) sincronicamente quando o termo era curto — padrão que o
+  // react-hooks v7 desencoraja. Agora só mostramos o resultado quando
+  // o termo é válido; caso contrário renderiza vazio sem precisar limpar state.
+  const alunos = buscaAlunoDebounced.length < 2 ? [] : alunosResultado
+  const livros = buscaLivroDebounced.length < 2 ? [] : livrosResultado
 
   useEffect(() => {
     const t = setTimeout(() => setBuscaAlunoDebounced(buscaAluno), 350)
@@ -67,18 +81,21 @@ function NovoEmprestimoForm() {
     const matriculaParam = searchParams.get('matricula')
     const acervoId       = searchParams.get('acervo_id')
 
+    type AlunoComboRow = Pick<AlunoComTurma, 'matricula' | 'nome' | 'turmas'>
+    type ExemplarComboRow = Pick<LivroExemplarComAcervo, 'id' | 'tombo' | 'disponivel' | 'acervo'>
+
     if (matriculaParam) {
       supabase
         .from('alunos')
         .select('matricula, nome, turmas(nome)')
         .eq('matricula', Number(matriculaParam))
         .single()
-        .then(({ data }: any) => {
+        .then(({ data }: { data: AlunoComboRow | null }) => {
           if (!data) return
           setAlunoSelecionado({
             matricula: data.matricula,
             nome: data.nome,
-            turma: (data.turmas as any)?.nome ?? '',
+            turma: pickRelation(data.turmas)?.nome ?? '',
             em_atraso: false,
           })
           setEtapa('livro')
@@ -93,9 +110,10 @@ function NovoEmprestimoForm() {
         .eq('disponivel', true)
         .limit(1)
         .single()
-        .then(({ data }: any) => {
+        .then(({ data }: { data: ExemplarComboRow | null }) => {
           if (!data) return
-          const acervo = data.acervo as any
+          const acervo = pickRelation(data.acervo)
+          if (!acervo) return
           setLivroSelecionado({
             exemplar_id: data.id,
             tombo: data.tombo,
@@ -110,7 +128,7 @@ function NovoEmprestimoForm() {
 
   // Busca de alunos
   useEffect(() => {
-    if (buscaAlunoDebounced.length < 2) { setAlunos([]); return }
+    if (buscaAlunoDebounced.length < 2) return
 
     async function buscar() {
       const supabase = createClient()
@@ -125,18 +143,22 @@ function NovoEmprestimoForm() {
 
       if (!data) return
 
-      const matriculas = data.map((a: any) => a.matricula)
+      type AlunoBuscaRow = Pick<AlunoComTurma, 'matricula' | 'nome' | 'turmas'>
+      const rows = data as AlunoBuscaRow[]
+      const matriculas = rows.map(a => a.matricula)
       const { data: atrasados } = await supabase
         .from('vw_emprestimos_atrasados')
         .select('matricula')
         .in('matricula', matriculas)
 
-      const atrasadosSet = new Set(atrasados?.map((a: any) => a.matricula) ?? [])
+      const atrasadosSet = new Set(
+        ((atrasados ?? []) as Pick<ViewEmprestimoAtrasado, 'matricula'>[]).map(a => a.matricula),
+      )
 
-      setAlunos(data.map((a: any) => ({
+      setAlunosResultado(rows.map(a => ({
         matricula: a.matricula,
         nome: a.nome,
-        turma: (a.turmas as any)?.nome ?? '',
+        turma: pickRelation(a.turmas)?.nome ?? '',
         em_atraso: atrasadosSet.has(a.matricula),
       })))
     }
@@ -145,7 +167,7 @@ function NovoEmprestimoForm() {
 
   // Busca de livros — por nome/autor OU por tombo (número)
   useEffect(() => {
-    if (buscaLivroDebounced.length < 2) { setLivros([]); return }
+    if (buscaLivroDebounced.length < 2) return
 
     async function buscar() {
       const supabase = createClient()
@@ -162,13 +184,17 @@ function NovoEmprestimoForm() {
           .limit(4)
 
         if (dataTombo) {
-          exemplares.push(...dataTombo.map((ex: any) => ({
-            exemplar_id: ex.id,
-            tombo: ex.tombo,
-            titulo: (ex.acervo as any)?.titulo ?? 'Desconhecido',
-            autor: (ex.acervo as any)?.autor ?? '',
-            disponivel: ex.disponivel,
-          })))
+          type ExemplarTomboRow = Pick<LivroExemplarComAcervo, 'id' | 'tombo' | 'disponivel' | 'acervo'>
+          exemplares.push(...(dataTombo as ExemplarTomboRow[]).map(ex => {
+            const acervo = pickRelation(ex.acervo)
+            return {
+              exemplar_id: ex.id,
+              tombo: ex.tombo,
+              titulo: acervo?.titulo ?? 'Desconhecido',
+              autor: acervo?.autor ?? '',
+              disponivel: ex.disponivel,
+            }
+          }))
         }
       } 
       
@@ -182,8 +208,11 @@ function NovoEmprestimoForm() {
           .limit(8 - exemplares.length)
 
         if (dataAcervo) {
-          const fetchedExemplares = dataAcervo.flatMap((obra: any) =>
-            (obra.livros_exemplares as any[]).map((ex: any) => ({
+          type AcervoBuscaRow = Pick<AcervoRow, 'id' | 'titulo' | 'autor'> & {
+            livros_exemplares: { id: string; tombo: number | null; disponivel: boolean }[]
+          }
+          const fetchedExemplares = (dataAcervo as AcervoBuscaRow[]).flatMap(obra =>
+            obra.livros_exemplares.map(ex => ({
               exemplar_id: ex.id,
               tombo: ex.tombo,
               titulo: obra.titulo,
@@ -198,7 +227,7 @@ function NovoEmprestimoForm() {
         }
       }
       
-      setLivros(exemplares.slice(0, 8))
+      setLivrosResultado(exemplares.slice(0, 8))
     }
     buscar()
   }, [buscaLivroDebounced])
@@ -266,7 +295,7 @@ function NovoEmprestimoForm() {
             {alunos.map(aluno => (
               <button
                 key={aluno.matricula}
-                onClick={() => { setAlunoSelecionado(aluno); setEtapa('livro'); setAlunos([]); setBuscaAluno('') }}
+                onClick={() => { setAlunoSelecionado(aluno); setEtapa('livro'); setAlunosResultado([]); setBuscaAluno('') }}
                 className="flex items-center gap-3 p-3 border rounded-xl text-left hover:bg-gray-50 transition-colors"
               >
                 <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-800 flex-shrink-0">
@@ -326,7 +355,7 @@ function NovoEmprestimoForm() {
             {livros.map(livro => (
               <button
                 key={livro.exemplar_id}
-                onClick={() => { setLivroSelecionado(livro); setEtapa('confirmar'); setLivros([]); setBuscaLivro('') }}
+                onClick={() => { setLivroSelecionado(livro); setEtapa('confirmar'); setLivrosResultado([]); setBuscaLivro('') }}
                 className="flex items-center gap-3 p-3 border rounded-xl text-left hover:bg-gray-50 transition-colors"
               >
                 <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-sm flex-shrink-0" aria-hidden="true">📗</div>

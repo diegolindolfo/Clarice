@@ -42,7 +42,8 @@ async function buscarOpenLibrary(termo: string): Promise<SugestaoLivro[]> {
       ano: d.first_publish_year ?? null,
       isbn: d.isbn?.[0] ?? null,
       fonte: 'openlibrary' as const,
-      score: 1 - i * 0.1,
+      // Decai com o ranking do resultado, mas nunca abaixo de 0.
+      score: Math.max(0, 1 - i * 0.1),
     }))
   } catch {
     return []
@@ -91,7 +92,7 @@ async function buscarGoogleBooks(termo: string): Promise<SugestaoLivro[]> {
           ano: Number.isFinite(ano) ? ano : null,
           isbn,
           fonte: 'googlebooks' as const,
-          score: 1 - i * 0.1,
+          score: Math.max(0, 1 - i * 0.1),
         }
       })
   } catch {

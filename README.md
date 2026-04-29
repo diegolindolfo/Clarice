@@ -100,8 +100,39 @@ As principais tabelas e views usadas pelo app:
 
 ## Tecnologias
 
-- **Next.js 15** — App Router
+- **Next.js 16** — App Router
 - **Supabase** — Banco de dados + Auth
 - **Tailwind CSS** — Estilização
 - **jsPDF + jspdf-autotable** — Exportação de PDF
 - **TypeScript** — Tipagem estática
+- **PWA** via `@ducanh2912/next-pwa`
+
+## Notas de build
+
+- Os scripts `dev` e `build` usam `--webpack` em vez do Turbopack (default no
+  Next 16). Isso é intencional: o plugin `@ducanh2912/next-pwa` ainda não
+  suporta Turbopack. Quando o suporte chegar, basta remover a flag.
+
+## Banco — agendamento de refresh do ranking
+
+A view materializada `mv_ranking_ano` (usada por `get_passaporte`) precisa ser
+atualizada periodicamente para refletir novas devoluções. Em produção, habilite
+`pg_cron` no Supabase (Database → Extensions) e agende:
+
+```sql
+select cron.schedule(
+  'refresh-ranking-ano',
+  '15 * * * *',
+  $$select public.refresh_mv_ranking_ano()$$
+);
+```
+
+Sem o cron, o ranking fica congelado no último refresh manual.
+
+## Testes / lint
+
+```bash
+npm test            # testes unitários (Vitest)
+npm run lint        # ESLint
+npm run type-check  # checagem de tipos sem emitir
+```

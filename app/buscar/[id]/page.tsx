@@ -151,7 +151,7 @@ export default function DetalheBuscaPage() {
             style={{ backgroundColor: 'var(--bg-muted)' }}
           >
             {livro.imagem_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
+               
               <img src={livro.imagem_url} alt={livro.titulo} className="w-full h-full object-cover" />
             ) : (
               <span className="text-3xl font-semibold" style={{ color: 'var(--text-muted)' }}>

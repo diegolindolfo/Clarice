@@ -1,8 +1,11 @@
 // ── Formatação de data (fuso local) ─────────────────────
 // BUG CORRIGIDO: new Date("2026-01-15") interpreta como UTC → data aparece um dia antes no Brasil.
 // Extraímos os componentes manualmente para construir a data no fuso local.
-export function fmt(d: string) {
-  const [y, m, day] = d.split('T')[0].split('-').map(Number)
+export function fmt(d: string | null | undefined): string {
+  if (!d) return ''
+  const partes = d.split('T')[0].split('-').map(Number)
+  if (partes.length < 3 || partes.some(n => !Number.isFinite(n))) return ''
+  const [y, m, day] = partes
   return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
 }
 

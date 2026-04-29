@@ -64,7 +64,7 @@ export async function exportarAtrasadosPDF(atrasados: AtrasadoPDF[]) {
     margin: { left: 14, right: 14 },
   })
 
-  const totalPaginas = (doc as any).internal.getNumberOfPages()
+  const totalPaginas = doc.getNumberOfPages()
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i); doc.setFontSize(7); doc.setTextColor(150)
     doc.text(`Clarice — Biblioteca Escolar  ·  Página ${i} de ${totalPaginas}`, 297 / 2, 205, { align: 'center' })

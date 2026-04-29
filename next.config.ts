@@ -21,8 +21,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'books.googleusercontent.com' },
     ],
   },
-  // Desativa telemetria
-  experimental: {},
 }
 
 export default withPWA(nextConfig)

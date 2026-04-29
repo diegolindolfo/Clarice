@@ -85,17 +85,21 @@ export default function DashboardPage() {
         total_mes: r5.count ?? 0, alunos_ativos: r6.count ?? 0,
       })
 
+      type TurmaRow      = { turma: string | null }
+      type LivroRow      = { titulo: string | null; autor: string | null }
+      type LeitorRow     = { matricula: number | null; aluno_nome: string | null; turma: string | null }
+
       // Por turma
       if (empTurma.data) {
         const cont: Record<string, number> = {}
-        empTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
+        ;(empTurma.data as TurmaRow[]).forEach(({ turma }) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
         setPorTurma(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total).slice(0, 8))
       }
 
       // Livros top
       if (empLivros.data) {
         const cont: Record<string, { autor: string; total: number }> = {}
-        empLivros.data.forEach(({ titulo, autor }: any) => {
+        ;(empLivros.data as LivroRow[]).forEach(({ titulo, autor }) => {
           if (!titulo) return
           if (!cont[titulo]) cont[titulo] = { autor: autor ?? '', total: 0 }
           cont[titulo].total++
@@ -106,14 +110,14 @@ export default function DashboardPage() {
       // Atrasados por turma (sempre tempo real)
       if (atrasTurma.data) {
         const cont: Record<string, number> = {}
-        atrasTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
+        ;(atrasTurma.data as TurmaRow[]).forEach(({ turma }) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
         setAtrasados(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total))
       }
 
       // Alunos leitores
       if (empAlunos.data) {
         const cont: Record<number, { nome: string; turma: string; total: number }> = {}
-        empAlunos.data.forEach(({ matricula, aluno_nome, turma }: any) => {
+        ;(empAlunos.data as LeitorRow[]).forEach(({ matricula, aluno_nome, turma }) => {
           if (!matricula) return
           if (!cont[matricula]) cont[matricula] = { nome: aluno_nome ?? '', turma: turma ?? '', total: 0 }
           cont[matricula].total++

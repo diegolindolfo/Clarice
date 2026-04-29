@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -22,19 +23,23 @@ export default function PassaporteLandingPage() {
 
     setCarregando(true)
     try {
+      // Usa RPC dedicada (security definer) em vez de select direto em
+      // `alunos` com a anon key. Reduz superficie de leitura publica e
+      // permite rate-limit/throttle no servidor sem expor a tabela.
       const supabase = createClient()
-      const { data } = await supabase
-        .from('alunos')
-        .select('matricula, ativo')
-        .eq('matricula', Number(limpa))
-        .maybeSingle()
+      const { data, error } = await supabase.rpc('check_matricula', {
+        p_matricula: Number(limpa),
+      })
 
-      if (!data) {
+      if (error) throw error
+
+      const info = data as { existe: boolean; ativo: boolean } | null
+      if (!info?.existe) {
         setErro('Matrícula não encontrada.')
         setCarregando(false)
         return
       }
-      if (data.ativo === false) {
+      if (!info.ativo) {
         setErro('Matrícula inativa. Procure a biblioteca.')
         setCarregando(false)
         return
@@ -101,13 +106,13 @@ export default function PassaporteLandingPage() {
         </form>
 
         <div className="text-center mt-6 space-y-2">
-          <a
+          <Link
             href="/buscar"
             className="inline-block text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
             style={{ color: 'var(--text-secondary)' }}
           >
             Consultar acervo →
-          </a>
+          </Link>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
             EEEP Professor José Augusto Torres
           </p>

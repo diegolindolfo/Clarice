@@ -46,7 +46,6 @@ export default function BuscarAcervoPage() {
     }, 280)
 
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [termo])
 
   async function buscar(termoBusca: string) {
@@ -252,7 +251,7 @@ export default function BuscarAcervoPage() {
                         style={{ backgroundColor: 'var(--bg-muted)' }}
                       >
                         {livro.imagem_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
+                           
                           <img src={livro.imagem_url} alt={livro.titulo} className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-lg font-semibold" style={{ color: 'var(--text-muted)' }}>

@@ -10,90 +10,15 @@ import {
   normalizarCabecalho,
 } from '@/lib/csv'
 import { toast_success, toast_error } from '@/components/Toast'
+import { Tabs, type Aba } from './_components/Tabs'
+import {
+  validarAlunos as validarAlunosLib,
+  validarAcervo,
+  type LinhaProcessada,
+  type Turma,
+} from './_lib/validacao'
 
 export const dynamic = 'force-dynamic'
-
-type Aba = 'alunos' | 'acervo'
-
-type LinhaProcessada = {
-  numero: number
-  dados: Record<string, string>
-  erros: string[]
-  avisos: string[]
-  valido: boolean
-}
-
-type Turma = { id: number; nome: string; norm: string }
-
-const TIPOS_VALIDOS = new Set(['literatura', 'paradidático', 'paradidatico', 'técnico', 'tecnico', 'didático', 'didatico', 'filosofia', 'outro'])
-const AQUISICAO_VALIDOS = new Set(['pnld', 'doação', 'doacao', 'compra', 'gestão', 'gestao', 'permuta', 'outro'])
-
-// Aliases aceitos em cabeçalhos (tudo é normalizado antes)
-const ALIASES_ALUNO: Record<string, string[]> = {
-  matricula: ['matricula', 'matrícula', 'mat'],
-  nome: ['nome', 'aluno', 'aluno_nome', 'nome_aluno', 'nome_completo'],
-  turma: ['turma', 'classe', 'serie', 'série', 'turma_nome'],
-  email: ['email', 'e-mail', 'email_aluno'],
-}
-
-const ALIASES_ACERVO: Record<string, string[]> = {
-  titulo: ['titulo', 'título', 'title', 'obra', 'livro'],
-  autor: ['autor', 'autores', 'author'],
-  editora: ['editora', 'publisher'],
-  cdd: ['cdd', 'codigo_cdd', 'código_cdd'],
-  tipo: ['tipo', 'categoria_obra'],
-  genero: ['genero', 'gênero', 'genre'],
-  categoria: ['categoria', 'subcategoria'],
-  serie: ['serie_colecao', 'serie', 'coleção', 'colecao', 'série_coleção'],
-  descricao: ['descricao', 'descrição', 'resumo', 'sinopse'],
-  imagem_url: ['imagem_url', 'capa', 'imagem', 'url_capa', 'capa_url'],
-  tombo: ['tombo', 'exemplar_tombo', 'numero_tombo'],
-  aquisicao: ['aquisicao', 'aquisição', 'origem'],
-  volume: ['volume', 'vol'],
-  edicao: ['edicao', 'edição'],
-  isbn: ['isbn'],
-}
-
-function resolverAlias(obj: Record<string, string>, aliases: Record<string, string[]>): Record<string, string> {
-  const res: Record<string, string> = {}
-  for (const [k, lista] of Object.entries(aliases)) {
-    for (const nome of lista) {
-      const norm = normalizarCabecalho(nome)
-      if (norm in obj && obj[norm] !== undefined && obj[norm] !== '') {
-        res[k] = obj[norm]
-        break
-      }
-    }
-    if (!(k in res)) res[k] = ''
-  }
-  return res
-}
-
-function Tabs({ aba, onChange }: { aba: Aba; onChange: (a: Aba) => void }) {
-  return (
-    <div className="flex gap-0 border-b mb-6" style={{ borderColor: 'var(--border)' }}>
-      {([['alunos', 'Alunos'], ['acervo', 'Acervo']] as const).map(([val, label]) => {
-        const ativo = aba === val
-        return (
-          <button
-            key={val}
-            onClick={() => onChange(val)}
-            className={`relative px-4 py-2 text-sm transition-colors ${ativo ? 'font-medium' : ''}`}
-            style={{ color: ativo ? 'var(--text-primary)' : 'var(--text-muted)' }}
-          >
-            {label}
-            {ativo && (
-              <span
-                className="absolute bottom-[-1px] left-3 right-3 h-[2px] rounded-t-full"
-                style={{ backgroundColor: 'var(--text-primary)' }}
-              />
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function ImportarPage() {
   const router = useRouter()
@@ -115,8 +40,8 @@ export default function ImportarPage() {
         supabase.from('turmas').select('id, nome'),
         supabase.from('alunos').select('matricula'),
       ])
-      setTurmas((t ?? []).map((x: any) => ({ id: x.id, nome: x.nome, norm: normalizarCabecalho(x.nome) })))
-      setMatriculasExistentes(new Set((a ?? []).map((x: any) => x.matricula)))
+      setTurmas(((t ?? []) as { id: number; nome: string }[]).map(x => ({ id: x.id, nome: x.nome, norm: normalizarCabecalho(x.nome) })))
+      setMatriculasExistentes(new Set(((a ?? []) as { matricula: number }[]).map(x => x.matricula)))
     }
     carregar()
   }, [])
@@ -127,87 +52,6 @@ export default function ImportarPage() {
     setLinhas([])
     setResultado(null)
   }, [aba])
-
-  function validarAlunos(objs: Record<string, string>[]): LinhaProcessada[] {
-    const vistos = new Set<number>()
-    return objs.map((obj, i) => {
-      const dados = resolverAlias(obj, ALIASES_ALUNO)
-      const erros: string[] = []
-      const avisos: string[] = []
-
-      const mat = dados.matricula.replace(/\D+/g, '')
-      if (!mat) {
-        erros.push('matrícula faltando ou inválida')
-      } else {
-        const num = Number(mat)
-        if (vistos.has(num)) erros.push('matrícula duplicada no CSV')
-        vistos.add(num)
-        if (matriculasExistentes.has(num)) avisos.push('matrícula já existe (será atualizada)')
-      }
-
-      if (!dados.nome || dados.nome.length < 2) erros.push('nome obrigatório')
-
-      if (!dados.turma) {
-        erros.push('turma obrigatória')
-      } else {
-        const normTurma = normalizarCabecalho(dados.turma)
-        const achou = turmas.find(t => t.norm === normTurma)
-        if (!achou) avisos.push(`turma "${dados.turma}" será criada`)
-      }
-
-      if (dados.email && !/^\S+@\S+\.\S+$/.test(dados.email)) {
-        avisos.push('e-mail com formato suspeito')
-      }
-
-      return {
-        numero: i + 2, // +2 porque linha 1 = header
-        dados,
-        erros,
-        avisos,
-        valido: erros.length === 0,
-      }
-    })
-  }
-
-  function validarAcervo(objs: Record<string, string>[]): LinhaProcessada[] {
-    const tombosVistos = new Set<number>()
-    return objs.map((obj, i) => {
-      const dados = resolverAlias(obj, ALIASES_ACERVO)
-      const erros: string[] = []
-      const avisos: string[] = []
-
-      if (!dados.titulo || dados.titulo.length < 2) erros.push('título obrigatório')
-
-      if (dados.tipo) {
-        const norm = normalizarCabecalho(dados.tipo)
-        if (!TIPOS_VALIDOS.has(norm)) avisos.push(`tipo "${dados.tipo}" não é padrão`)
-      }
-
-      if (dados.tombo) {
-        const t = dados.tombo.replace(/\D+/g, '')
-        if (!t) {
-          avisos.push('tombo inválido (ignorado)')
-        } else {
-          const num = Number(t)
-          if (tombosVistos.has(num)) erros.push('tombo duplicado no CSV')
-          tombosVistos.add(num)
-        }
-      }
-
-      if (dados.aquisicao) {
-        const norm = normalizarCabecalho(dados.aquisicao)
-        if (!AQUISICAO_VALIDOS.has(norm)) avisos.push(`aquisição "${dados.aquisicao}" não é padrão`)
-      }
-
-      return {
-        numero: i + 2,
-        dados,
-        erros,
-        avisos,
-        valido: erros.length === 0,
-      }
-    })
-  }
 
   async function processarArquivo(file: File) {
     setProcessando(true)
@@ -221,10 +65,11 @@ export default function ImportarPage() {
         return
       }
       const objs = csvParaObjetos(linhasCSV)
-      const processadas = aba === 'alunos' ? validarAlunos(objs) : validarAcervo(objs)
+      const processadas = aba === 'alunos' ? validarAlunosLib(objs, { turmas, matriculasExistentes }) : validarAcervo(objs)
       setLinhas(processadas)
-    } catch (err: any) {
-      toast_error(`Erro ao ler CSV: ${err?.message ?? err}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast_error(`Erro ao ler CSV: ${msg}`)
       setLinhas([])
     } finally {
       setProcessando(false)
@@ -383,8 +228,8 @@ export default function ImportarPage() {
         supabase
           .from('alunos')
           .select('matricula')
-          .then(({ data }: any) => {
-            if (data) setMatriculasExistentes(new Set(data.map((x: any) => x.matricula)))
+          .then(({ data }: { data: { matricula: number }[] | null }) => {
+            if (data) setMatriculasExistentes(new Set(data.map(x => x.matricula)))
           })
       }
     }
