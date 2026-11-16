@@ -23,8 +23,8 @@ export default function Nav() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }: any) => {
-      setEmail(data.user?.email ?? null)
+    supabase.auth.getSession().then(({ data }: any) => {
+      setEmail(data.session?.user?.email ?? null)
     })
     setDark(document.documentElement.getAttribute('data-theme') === 'dark')
   }, [])

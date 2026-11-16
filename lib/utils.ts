@@ -6,12 +6,29 @@ export function fmt(d: string) {
   return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
 }
 
-/** Retorna YYYY-MM-DD no fuso local (evita virada antecipada às 21h BRT via toISOString). */
+const TIMEZONE_PADRAO = 'America/Fortaleza'
+
+/** Extrai ano, mês (0..11) e dia no fuso de Brasília/Fortaleza, seguro tanto no cliente quanto em SSR UTC. */
+export function partesDataLocal(d: Date = new Date()): { ano: number; mes: number; dia: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE_PADRAO,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d)
+
+  const get = (type: string) => Number(parts.find(p => p.type === type)?.value ?? 0)
+  return {
+    ano: get('year'),
+    mes: get('month') - 1,
+    dia: get('day'),
+  }
+}
+
+/** Retorna YYYY-MM-DD no fuso de Brasília/Fortaleza (seguro no cliente e em SSR UTC). */
 export function hojeLocal(d: Date = new Date()): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  const { ano, mes, dia } = partesDataLocal(d)
+  return `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
 }
 
 // ── Avatares ────────────────────────────────────────────

@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isPassaporte = pathname === '/passaporte' || pathname.startsWith('/passaporte/')
+  const isBuscaAcervo = pathname === '/buscar' || pathname.startsWith('/buscar/')
+
+  if (isPassaporte || isBuscaAcervo) {
+    return NextResponse.next({ request })
+  }
+
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,16 +34,13 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
   const isApi = pathname.startsWith('/api/')
   const isLogin = pathname === '/login' || pathname.startsWith('/login/')
-  const isPassaporte = pathname === '/passaporte' || pathname.startsWith('/passaporte/')
-  const isBuscaAcervo = pathname === '/buscar' || pathname.startsWith('/buscar/')
 
   if (!user && isApi) {
     return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
   }
-  if (!user && !isLogin && !isPassaporte && !isBuscaAcervo) {
+  if (!user && !isLogin) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   if (user && isLogin) {
