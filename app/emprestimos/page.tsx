@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { fmt, sanitizeBusca } from '@/lib/utils'
+import { fmt, sanitizeBuscaOr } from '@/lib/utils'
 import ModalDevolucao from '@/components/ModalDevolucao'
 import ModalRenovacao from '@/components/ModalRenovacao'
 import { toast_success, toast_error } from '@/components/Toast'
@@ -98,10 +98,12 @@ function EmprestimosContent() {
       }
     }
     if (buscaDebounced) {
-      const termo = sanitizeBusca(buscaDebounced)
-      query = query.or(
-        `aluno_nome.ilike.%${termo}%,titulo.ilike.%${termo}%`
-      )
+      const termo = sanitizeBuscaOr(buscaDebounced)
+      if (termo) {
+        query = query.or(
+          `aluno_nome.ilike.%${termo}%,titulo.ilike.%${termo}%`
+        )
+      }
     }
 
     const { data, count, error } = await query

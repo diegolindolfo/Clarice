@@ -27,10 +27,14 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
+  const isApi = pathname.startsWith('/api/')
   const isLogin = pathname === '/login' || pathname.startsWith('/login/')
   const isPassaporte = pathname === '/passaporte' || pathname.startsWith('/passaporte/')
   const isBuscaAcervo = pathname === '/buscar' || pathname.startsWith('/buscar/')
 
+  if (!user && isApi) {
+    return NextResponse.json({ erro: 'Não autenticado' }, { status: 401 })
+  }
   if (!user && !isLogin && !isPassaporte && !isBuscaAcervo) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
@@ -43,6 +47,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclui assets estáticos e arquivos PWA (manifest, service worker e workers do workbox)
+    '/((?!_next/static|_next/image|favicon.ico|manifest\\.json|sw\\.js|workbox-.*\\.js|swe-worker-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, buscarTodasPaginas } from '@/lib/supabase'
 import { detectarDuplicatas, type GrupoDuplicata, type ItemTitulo } from '@/lib/similaridade'
 import { buscarSugestoes, type SugestaoLivro } from '@/lib/buscaLivros'
 import { toast_success, toast_error } from '@/components/Toast'
@@ -41,17 +41,22 @@ export default function CuradoriaAcervoPage() {
       setCarregando(true)
       const supabase = createClient()
       const [{ data: acervo }, { data: exs }] = await Promise.all([
-        supabase
-          .from('acervo')
-          .select('id, titulo, autor, editora, tipo, genero, imagem_url, cdd')
-          .order('titulo'),
-        supabase.from('livros_exemplares').select('acervo_id'),
+        buscarTodasPaginas<AcervoRow>((from, to) =>
+          supabase
+            .from('acervo')
+            .select('id, titulo, autor, editora, tipo, genero, imagem_url, cdd')
+            .order('titulo')
+            .range(from, to)
+        ),
+        buscarTodasPaginas<{ acervo_id: string }>((from, to) =>
+          supabase.from('livros_exemplares').select('acervo_id').range(from, to)
+        ),
       ])
 
-      setItens((acervo ?? []) as AcervoRow[])
+      setItens(acervo)
 
       const map: ContagemExemplares = {}
-      for (const e of (exs ?? []) as { acervo_id: string }[]) {
+      for (const e of exs) {
         map[e.acervo_id] = (map[e.acervo_id] ?? 0) + 1
       }
       setContagens(map)

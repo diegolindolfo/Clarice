@@ -6,6 +6,14 @@ export function fmt(d: string) {
   return new Date(y, m - 1, day).toLocaleDateString('pt-BR')
 }
 
+/** Retorna YYYY-MM-DD no fuso local (evita virada antecipada às 21h BRT via toISOString). */
+export function hojeLocal(d: Date = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 // ── Avatares ────────────────────────────────────────────
 export const CORES_AVATAR = [
   { bg: '#E6F1FB', tc: '#0C447C' }, { bg: '#EEEDFE', tc: '#3C3489' },
@@ -29,4 +37,9 @@ export function sanitizeBusca(termo: string): string {
     .replace(/\\/g, '\\\\')
     .replace(/%/g, '\\%')
     .replace(/_/g, '\\_')
+}
+
+/** Sanitiza termo para uso seguro dentro de filtros `.or(...)` do PostgREST. */
+export function sanitizeBuscaOr(termo: string): string {
+  return sanitizeBusca(termo).replace(/[,()]/g, ' ').trim()
 }

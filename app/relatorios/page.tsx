@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase'
+import { createClient, buscarTodasPaginas } from '@/lib/supabase'
 import { fmt } from '@/lib/utils'
 import { toast_success, toast_error } from '@/components/Toast'
 
@@ -50,36 +50,48 @@ export default function RelatoriosPage() {
       const fim_date = new Date(y, m, 0)
       const fim = `${y}-${String(m).padStart(2, '0')}-${String(fim_date.getDate()).padStart(2, '0')}`
 
-      const [empRes, devRes, renRes, livrosRes, turmasRes, alunosRes] = await Promise.all([
+      type PainelRelatorioRow = {
+        titulo: string | null
+        autor: string | null
+        turma: string | null
+        aluno_nome: string | null
+        matricula: number | null
+      }
+
+      const [empRes, devRes, renRes, painelRes] = await Promise.all([
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).gte('data_saida', inicio).lte('data_saida', fim),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'DEVOLVIDO').gte('data_devolucao_real', inicio).lte('data_devolucao_real', fim),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).not('renovado_em', 'is', null).gte('renovado_em', inicio).lte('renovado_em', fim),
-        supabase.from('vw_painel_aluno').select('titulo, autor').gte('data_saida', inicio).lte('data_saida', fim),
-        supabase.from('vw_painel_aluno').select('turma').gte('data_saida', inicio).lte('data_saida', fim),
-        supabase.from('vw_painel_aluno').select('aluno_nome, turma, matricula').gte('data_saida', inicio).lte('data_saida', fim),
+        buscarTodasPaginas<PainelRelatorioRow>((from, to) =>
+          supabase
+            .from('vw_painel_aluno')
+            .select('titulo, autor, turma, aluno_nome, matricula')
+            .gte('data_saida', inicio)
+            .lte('data_saida', fim)
+            .range(from, to)
+        ),
       ])
 
-      // Contabilizar livros top
       const livrosMap: Record<string, { titulo: string; autor: string; total: number }> = {}
-      ;(livrosRes.data ?? []).forEach((e: any) => {
+      const turmasMap: Record<string, number> = {}
+      const alunosMap: Record<number, { nome: string; turma: string; total: number }> = {}
+
+      for (const e of painelRes.data) {
         const key = e.titulo ?? ''
         if (!livrosMap[key]) livrosMap[key] = { titulo: key, autor: e.autor ?? '', total: 0 }
         livrosMap[key].total++
-      })
+
+        const turma = e.turma ?? ''
+        turmasMap[turma] = (turmasMap[turma] ?? 0) + 1
+
+        if (e.matricula) {
+          if (!alunosMap[e.matricula]) alunosMap[e.matricula] = { nome: e.aluno_nome ?? '', turma, total: 0 }
+          alunosMap[e.matricula].total++
+        }
+      }
+
       const livrosTop = Object.values(livrosMap).sort((a, b) => b.total - a.total).slice(0, 5)
-
-      // Turmas
-      const turmasMap: Record<string, number> = {}
-      ;(turmasRes.data ?? []).forEach((e: any) => { turmasMap[e.turma ?? ''] = (turmasMap[e.turma ?? ''] ?? 0) + 1 })
       const turmasTop = Object.entries(turmasMap).map(([t, n]) => ({ turma: t, total: n })).sort((a, b) => b.total - a.total).slice(0, 5)
-
-      // Alunos
-      const alunosMap: Record<number, { nome: string; turma: string; total: number }> = {}
-      ;(alunosRes.data ?? []).forEach((e: any) => {
-        if (!e.matricula) return
-        if (!alunosMap[e.matricula]) alunosMap[e.matricula] = { nome: e.aluno_nome ?? '', turma: e.turma ?? '', total: 0 }
-        alunosMap[e.matricula].total++
-      })
       const alunosTop = Object.values(alunosMap).sort((a, b) => b.total - a.total).slice(0, 5)
 
       return {

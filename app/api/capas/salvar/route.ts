@@ -95,6 +95,7 @@ export async function POST(request: Request) {
   try {
     resp = await fetch(url, {
       signal: controller.signal,
+      redirect: 'error',
       headers: { 'User-Agent': 'Clarice-Biblioteca/1.0 (+capas)' },
     })
   } catch (err) {

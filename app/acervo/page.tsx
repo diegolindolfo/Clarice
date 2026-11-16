@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { fmt, sanitizeBusca } from '@/lib/utils'
+import { fmt, sanitizeBuscaOr } from '@/lib/utils'
 import Chip from '@/components/Chip'
 
 type Livro = {
@@ -71,7 +71,8 @@ export default function AcervoPage() {
         .range((pagina - 1) * POR_PAG, pagina * POR_PAG - 1)
 
       if (buscaDebounced.length >= 2) {
-        const termo = sanitizeBusca(buscaDebounced)
+        const termo = sanitizeBuscaOr(buscaDebounced)
+        if (!termo) { setLivros([]); setTotal(0); setCarregando(false); return }
         const { data: ids } = await supabase
           .from('acervo')
           .select('id')

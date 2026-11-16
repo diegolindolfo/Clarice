@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/lib/supabase'
-import { fmt, CORES_AVATAR, corAvatar, iniciais } from '@/lib/utils'
+import { createClient, buscarTodasPaginas } from '@/lib/supabase'
+import { fmt, hojeLocal, CORES_AVATAR, corAvatar, iniciais } from '@/lib/utils'
 
 type Resumo = {
   emprestados: number; renovados: number; atrasados: number
@@ -51,7 +51,7 @@ export default function DashboardPage() {
     try {
       const supabase = createClient()
       const agora = new Date()
-      const ini   = (y: number, m: number, d: number) => new Date(y, m, d).toISOString().split('T')[0]
+      const ini   = (y: number, m: number, d: number) => hojeLocal(new Date(y, m, d))
       const hoje  = ini(agora.getFullYear(), agora.getMonth(), agora.getDate())
 
       const dataInicio = periodo === 'mes'
@@ -64,19 +64,33 @@ export default function DashboardPage() {
         ? ini(agora.getFullYear(), agora.getMonth(), 0)
         : hoje
 
-      // MELHORIA: todas as queries agora rodam em paralelo num único Promise.all
-      const [r1, r2, r3, r4, r5, r6, empTurma, empLivros, atrasTurma, empAlunos] = await Promise.all([
+      type PainelRow = {
+        turma: string | null
+        titulo: string | null
+        autor: string | null
+        matricula: number | null
+        aluno_nome: string | null
+      }
+
+      // Queries de contagens + painel único (evita 3 chamadas repetidas e truncamento em 1000 linhas)
+      const [r1, r2, r3, r4, r5, r6, painelRes, atrasTurma] = await Promise.all([
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'EMPRESTADO'),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'RENOVADO'),
         supabase.from('vw_emprestimos_atrasados').select('*', { count: 'exact', head: true }),
-        supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'DEVOLVIDO').gte('data_saida', dataInicio).lte('data_saida', dataFim),
+        supabase.from('emprestimos').select('*', { count: 'exact', head: true }).eq('status', 'DEVOLVIDO').gte('data_devolucao_real', dataInicio).lte('data_devolucao_real', dataFim),
         supabase.from('emprestimos').select('*', { count: 'exact', head: true }).gte('data_saida', dataInicio).lte('data_saida', dataFim),
         supabase.from('alunos').select('*', { count: 'exact', head: true }).eq('ativo', true),
-        // Queries que antes eram sequenciais:
-        supabase.from('vw_painel_aluno').select('turma').gte('data_saida', dataInicio).lte('data_saida', dataFim),
-        supabase.from('vw_painel_aluno').select('titulo, autor').gte('data_saida', dataInicio).lte('data_saida', dataFim),
-        supabase.from('vw_emprestimos_atrasados').select('turma'),
-        supabase.from('vw_painel_aluno').select('matricula, aluno_nome, turma').gte('data_saida', dataInicio).lte('data_saida', dataFim),
+        buscarTodasPaginas<PainelRow>((from, to) =>
+          supabase
+            .from('vw_painel_aluno')
+            .select('turma, titulo, autor, matricula, aluno_nome')
+            .gte('data_saida', dataInicio)
+            .lte('data_saida', dataFim)
+            .range(from, to)
+        ),
+        buscarTodasPaginas<{ turma: string | null }>((from, to) =>
+          supabase.from('vw_emprestimos_atrasados').select('turma').range(from, to)
+        ),
       ])
 
       setResumo({
@@ -85,46 +99,36 @@ export default function DashboardPage() {
         total_mes: r5.count ?? 0, alunos_ativos: r6.count ?? 0,
       })
 
-      // Por turma
-      if (empTurma.data) {
-        const cont: Record<string, number> = {}
-        empTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
-        setPorTurma(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total).slice(0, 8))
+      const painelRows = painelRes.data
+      const contTurma: Record<string, number> = {}
+      const contLivros: Record<string, { autor: string; total: number }> = {}
+      const contAlunos: Record<number, { nome: string; turma: string; total: number }> = {}
+
+      for (const row of painelRows) {
+        if (row.turma) contTurma[row.turma] = (contTurma[row.turma] ?? 0) + 1
+        if (row.titulo) {
+          if (!contLivros[row.titulo]) contLivros[row.titulo] = { autor: row.autor ?? '', total: 0 }
+          contLivros[row.titulo].total++
+        }
+        if (row.matricula) {
+          if (!contAlunos[row.matricula]) contAlunos[row.matricula] = { nome: row.aluno_nome ?? '', turma: row.turma ?? '', total: 0 }
+          contAlunos[row.matricula].total++
+        }
       }
 
-      // Livros top
-      if (empLivros.data) {
-        const cont: Record<string, { autor: string; total: number }> = {}
-        empLivros.data.forEach(({ titulo, autor }: any) => {
-          if (!titulo) return
-          if (!cont[titulo]) cont[titulo] = { autor: autor ?? '', total: 0 }
-          cont[titulo].total++
-        })
-        setLivrosTop(Object.entries(cont).map(([titulo, v]) => ({ titulo, ...v })).sort((a, b) => b.total - a.total).slice(0, 5))
-      }
+      setPorTurma(Object.entries(contTurma).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total).slice(0, 8))
+      setLivrosTop(Object.entries(contLivros).map(([titulo, v]) => ({ titulo, ...v })).sort((a, b) => b.total - a.total).slice(0, 5))
+      setLeitores(
+        Object.entries(contAlunos)
+          .map(([mat, v]) => ({ matricula: Number(mat), nome: v.nome, turma: v.turma, total: v.total }))
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 5)
+      )
 
       // Atrasados por turma (sempre tempo real)
-      if (atrasTurma.data) {
-        const cont: Record<string, number> = {}
-        atrasTurma.data.forEach(({ turma }: any) => { if (turma) cont[turma] = (cont[turma] ?? 0) + 1 })
-        setAtrasados(Object.entries(cont).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total))
-      }
-
-      // Alunos leitores
-      if (empAlunos.data) {
-        const cont: Record<number, { nome: string; turma: string; total: number }> = {}
-        empAlunos.data.forEach(({ matricula, aluno_nome, turma }: any) => {
-          if (!matricula) return
-          if (!cont[matricula]) cont[matricula] = { nome: aluno_nome ?? '', turma: turma ?? '', total: 0 }
-          cont[matricula].total++
-        })
-        setLeitores(
-          Object.entries(cont)
-            .map(([mat, v]) => ({ matricula: Number(mat), nome: v.nome, turma: v.turma, total: v.total }))
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5)
-        )
-      }
+      const contAtraso: Record<string, number> = {}
+      atrasTurma.data.forEach(({ turma }) => { if (turma) contAtraso[turma] = (contAtraso[turma] ?? 0) + 1 })
+      setAtrasados(Object.entries(contAtraso).map(([turma, total]) => ({ turma, total })).sort((a, b) => b.total - a.total))
 
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err)

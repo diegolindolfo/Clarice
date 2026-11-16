@@ -1,3 +1,5 @@
+import { hojeLocal } from './utils'
+
 export type AtrasadoPDF = {
   aluno_nome: string
   matricula: number
@@ -70,5 +72,5 @@ export async function exportarAtrasadosPDF(atrasados: AtrasadoPDF[]) {
     doc.text(`Clarice — Biblioteca Escolar  ·  Página ${i} de ${totalPaginas}`, 297 / 2, 205, { align: 'center' })
   }
 
-  doc.save(`atrasados_${new Date().toISOString().split('T')[0]}.pdf`)
+  doc.save(`atrasados_${hojeLocal()}.pdf`)
 }

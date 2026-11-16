@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { corAvatar, iniciais, fmt } from '@/lib/utils'
+import { corAvatar, iniciais, fmt, hojeLocal } from '@/lib/utils'
 import {
   calcularPassaporte,
   proximoSelo,
@@ -306,7 +306,7 @@ export default function PassaporteAlunoPage() {
 
         if (empErr) throw empErr
 
-        const hoje = new Date().toISOString().split('T')[0]
+        const hoje = hojeLocal()
         const lista: Carimbo[] = (empData ?? []).map((e: any) => {
           const acervo = e.exemplar?.acervo ?? {}
           const prazoEfetivo = e.data_devolucao_renovada ?? e.data_devolucao_prevista ?? null
@@ -397,7 +397,7 @@ export default function PassaporteAlunoPage() {
         setCarregando(false)
         return
       }
-      const hoje = new Date().toISOString().split('T')[0]
+      const hoje = hojeLocal()
       const alunoDetalhe: Aluno = {
         matricula: p.aluno.matricula,
         nome: p.aluno.nome,
@@ -521,7 +521,7 @@ export default function PassaporteAlunoPage() {
       {/* Capa do passaporte */}
       <header className="border-b" style={{ borderColor: 'var(--border)' }}>
         {/* Barra de ações */}
-        <div className="max-w-4xl mx-auto px-6 pt-6 flex items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto px-6 pt-6 flex items-center justify-between gap-4 flex-wrap">
           <Link
             href="/passaporte"
             className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
@@ -529,15 +529,24 @@ export default function PassaporteAlunoPage() {
           >
             ← Trocar passaporte
           </Link>
-          <button
-            type="button"
-            onClick={baixarPDF}
-            disabled={baixandoPDF}
-            className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
-          </button>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/buscar"
+              className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Consultar acervo →
+            </Link>
+            <button
+              type="button"
+              onClick={baixarPDF}
+              disabled={baixandoPDF}
+              className="text-[11px] uppercase tracking-[0.2em] hover:opacity-70 transition-opacity disabled:opacity-50"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {baixandoPDF ? 'Gerando…' : '↓ Baixar PDF'}
+            </button>
+          </div>
         </div>
 
         {/* Corpo da capa (documento) */}
@@ -663,7 +672,7 @@ export default function PassaporteAlunoPage() {
                       Emissão
                     </dt>
                     <dd className="font-mono mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                      {fmt(new Date().toISOString().slice(0, 10))}
+                      {fmt(hojeLocal())}
                     </dd>
                   </div>
                   <div>
@@ -705,10 +714,10 @@ export default function PassaporteAlunoPage() {
         {/* Stats */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
-            { label: 'Carimbos', valor: resumo.lidos },
+            { label: resumo.lidos === 1 ? 'Carimbo' : 'Carimbos', valor: resumo.lidos },
             { label: 'Em leitura', valor: resumo.emLeitura },
-            { label: 'Gêneros', valor: resumo.generosDistintos },
-            { label: 'Tipos', valor: resumo.tiposDistintos },
+            { label: resumo.generosDistintos === 1 ? 'Gênero' : 'Gêneros', valor: resumo.generosDistintos },
+            { label: resumo.tiposDistintos === 1 ? 'Tipo' : 'Tipos', valor: resumo.tiposDistintos },
           ].map(s => (
             <div
               key={s.label}

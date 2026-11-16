@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { sanitizeBuscaOr } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,7 +86,14 @@ export default function BuscarAcervoPage() {
         if (rpcErr && !rpcIndisponivel) throw rpcErr
 
         type LivroRow = Omit<LivroResumo, 'total_exemplares' | 'disponiveis'>
-        const filtro = `titulo.ilike.%${termoBusca}%,autor.ilike.%${termoBusca}%`
+        const termoSeguro = sanitizeBuscaOr(termoBusca)
+        if (!termoSeguro) {
+          setResultados([])
+          setTotal(0)
+          setCarregando(false)
+          return
+        }
+        const filtro = `titulo.ilike.%${termoSeguro}%,autor.ilike.%${termoSeguro}%`
         const { data: livrosRaw, error: livrosErr } = await supabase
           .from('acervo')
           .select('id, titulo, autor, genero, tipo, categoria, descricao, imagem_url')

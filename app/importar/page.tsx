@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
+import { createClient, buscarTodasPaginas } from '@/lib/supabase'
+import { hojeLocal } from '@/lib/utils'
 import {
   parseCSV,
   csvParaObjetos,
@@ -113,10 +114,12 @@ export default function ImportarPage() {
       const supabase = createClient()
       const [{ data: t }, { data: a }] = await Promise.all([
         supabase.from('turmas').select('id, nome'),
-        supabase.from('alunos').select('matricula'),
+        buscarTodasPaginas<{ matricula: number }>((from, to) =>
+          supabase.from('alunos').select('matricula').range(from, to)
+        ),
       ])
       setTurmas((t ?? []).map((x: any) => ({ id: x.id, nome: x.nome, norm: normalizarCabecalho(x.nome) })))
-      setMatriculasExistentes(new Set((a ?? []).map((x: any) => x.matricula)))
+      setMatriculasExistentes(new Set(a.map(x => x.matricula)))
     }
     carregar()
   }, [])
@@ -346,7 +349,7 @@ export default function ImportarPage() {
                 volume: l.dados.volume?.trim() || null,
                 edicao: l.dados.edicao?.trim() || null,
                 aquisicao: l.dados.aquisicao ? normalizarCabecalho(l.dados.aquisicao).replace('doacao', 'doação').replace('gestao', 'gestão') : null,
-                data_cadastro: new Date().toISOString().split('T')[0],
+                data_cadastro: hojeLocal(),
                 disponivel: true,
               })
             if (exErr) {
