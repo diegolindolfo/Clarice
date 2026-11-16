@@ -24,10 +24,34 @@ export default function PassaporteLandingPage() {
     setCarregando(true)
     try {
       const supabase = createClient()
+      const matNum = Number(limpa)
+
+      // 1) Usa a RPC publica check_matricula (security definer, funciona com RLS ativo em alunos)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('check_matricula', {
+        p_matricula: matNum,
+      })
+
+      if (!rpcErr && rpcData) {
+        const res = rpcData as { existe?: boolean; ativo?: boolean }
+        if (!res.existe) {
+          setErro('Matrícula não encontrada.')
+          setCarregando(false)
+          return
+        }
+        if (res.ativo === false) {
+          setErro('Matrícula inativa. Procure a biblioteca.')
+          setCarregando(false)
+          return
+        }
+        router.push(`/passaporte/${limpa}`)
+        return
+      }
+
+      // 2) Fallback caso a RPC nao exista no schema
       const { data } = await supabase
         .from('alunos')
         .select('matricula, ativo')
-        .eq('matricula', Number(limpa))
+        .eq('matricula', matNum)
         .maybeSingle()
 
       if (!data) {
