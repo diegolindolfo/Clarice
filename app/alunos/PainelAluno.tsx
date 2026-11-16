@@ -19,6 +19,14 @@ const STATUS_STYLE: Record<string, string> = {
   DEVOLVIDO: 'bg-green-50 text-green-800', ATRASADO: 'bg-red-50 text-red-800',
 }
 
+function calcDiasAtraso(prazoFinal: string): number {
+  const [y, m, d] = prazoFinal.split('T')[0].split('-').map(Number)
+  const prazo = new Date(y, m - 1, d)
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  return Math.max(0, Math.floor((hoje.getTime() - prazo.getTime()) / 86400000))
+}
+
 export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { aluno: Aluno; onNovoEmprestimo: () => void; onEditar?: () => void }) {
   const [emprestimos, setEmprestimos] = useState<Emprestimo[]>([])
   const [stats, setStats]             = useState<Stats>({ total: 0, abertos: 0, atrasados: 0, devolvidos: 0 })
@@ -131,7 +139,7 @@ export default function PainelAluno({ aluno, onNovoEmprestimo, onEditar }: { alu
               </span>
               {e.em_atraso && (
                 <span className="text-xs text-red-600">
-                  {Math.floor((Date.now() - new Date(e.prazo_final + 'T00:00:00').getTime()) / 86400000)}d atraso
+                  {calcDiasAtraso(e.prazo_final)}d atraso
                 </span>
               )}
             </div>

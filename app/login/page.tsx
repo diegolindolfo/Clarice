@@ -94,6 +94,10 @@ export default function LoginPage() {
           <Link href="/passaporte" className="underline hover:text-gray-700">
             abrir passaporte de leitura
           </Link>
+          {' · '}
+          <Link href="/buscar" className="underline hover:text-gray-700">
+            consultar acervo
+          </Link>
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { hojeLocal } from '@/lib/utils'
 import { toast_success } from '@/components/Toast'
 
 type Exemplar = { key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string }
@@ -11,7 +12,7 @@ const TIPOS      = ['literatura', 'paradidático', 'técnico', 'didático', 'fil
 const AQUISICOES = ['pnld', 'doação', 'compra', 'gestão', 'permuta', 'outro']
 
 function novoExemplar(): Exemplar {
-  return { key: crypto.randomUUID(), tombo: '', volume: '', edicao: '', aquisicao: 'compra', data_cadastro: new Date().toISOString().split('T')[0] }
+  return { key: crypto.randomUUID(), tombo: '', volume: '', edicao: '', aquisicao: 'compra', data_cadastro: hojeLocal() }
 }
 
 function Campo({ label, erro, children }: { label: string; erro?: string; children: React.ReactNode }) {

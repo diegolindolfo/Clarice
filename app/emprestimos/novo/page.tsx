@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { iniciais, sanitizeBusca } from '@/lib/utils'
+import { hojeLocal, iniciais, sanitizeBuscaOr } from '@/lib/utils'
 import { toast_success } from '@/components/Toast'
 
 type Aluno = {
@@ -117,8 +117,9 @@ function NovoEmprestimoForm() {
 
     async function buscar() {
       const supabase = createClient()
-      const termo = sanitizeBusca(buscaAlunoDebounced)
+      const termo = sanitizeBuscaOr(buscaAlunoDebounced)
       const isMatricula = /^\d+$/.test(buscaAlunoDebounced)
+      if (!isMatricula && !termo) { setAlunos([]); return }
       const { data } = await supabase
         .from('alunos')
         .select('matricula, nome, turmas(nome)')
@@ -153,7 +154,7 @@ function NovoEmprestimoForm() {
     async function buscar() {
       const supabase = createClient()
       const str = buscaLivroDebounced.trim()
-      const termo = sanitizeBusca(str)
+      const termo = sanitizeBuscaOr(str)
       const isNumero = /^\d+$/.test(str)
       let exemplares: Livro[] = []
 
@@ -178,7 +179,7 @@ function NovoEmprestimoForm() {
       }
 
       // Preenche até 8 itens com a busca de títulos/autores
-      if (exemplares.length < 8) {
+      if (exemplares.length < 8 && termo) {
         const { data: dataAcervo } = await supabase
           .from('acervo')
           .select('id, titulo, autor, livros_exemplares!inner(id, tombo, disponivel)')
@@ -219,7 +220,7 @@ function NovoEmprestimoForm() {
       exemplar_id:     livroSelecionado.exemplar_id,
       aluno_matricula: alunoSelecionado.matricula,
       sala_na_data:    alunoSelecionado.turma,
-      data_saida:      new Date().toISOString().split('T')[0],
+      data_saida:      hojeLocal(),
       status:          'EMPRESTADO',
     })
 

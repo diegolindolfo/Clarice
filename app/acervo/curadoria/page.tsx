@@ -88,25 +88,36 @@ export default function CuradoriaAcervoPage() {
 
     const supabase = createClient()
 
-    // 1) Mover exemplares
-    const { error: eEx } = await supabase
-      .from('livros_exemplares')
-      .update({ acervo_id: manter.id })
-      .eq('acervo_id', remover.id)
-    if (eEx) {
-      toast_error(`Erro ao mover exemplares: ${eEx.message}`)
-      return
-    }
+    // Usa a RPC transacional mesclar_obras_acervo (move exemplares, aproveita
+    // metadados preenchidos da obra duplicada e exclui o registro removido).
+    const { error: rpcErr } = await supabase.rpc('mesclar_obras_acervo', {
+      p_id_manter: manter.id,
+      p_id_remover: remover.id,
+    })
 
-    // 2) Excluir o acervo duplicado
-    const { error: eA } = await supabase.from('acervo').delete().eq('id', remover.id)
-    if (eA) {
-      toast_error(`Exemplares movidos, mas erro ao excluir: ${eA.message}`)
+    if (rpcErr) {
+      toast_error(`Erro ao mesclar obras: ${rpcErr.message}`)
       return
     }
 
     toast_success('Duplicata mesclada!')
-    setItens(prev => prev.filter(i => i.id !== remover.id))
+    setItens(prev =>
+      prev
+        .filter(i => i.id !== remover.id)
+        .map(i =>
+          i.id === manter.id
+            ? {
+                ...i,
+                autor: i.autor?.trim() ? i.autor : remover.autor,
+                editora: i.editora?.trim() ? i.editora : remover.editora,
+                genero: i.genero?.trim() ? i.genero : remover.genero,
+                cdd: i.cdd?.trim() ? i.cdd : remover.cdd,
+                tipo: i.tipo ?? remover.tipo,
+                imagem_url: i.imagem_url?.trim() ? i.imagem_url : remover.imagem_url,
+              }
+            : i
+        )
+    )
     setContagens(prev => {
       const novo = { ...prev }
       novo[manter.id] = (novo[manter.id] ?? 0) + (novo[remover.id] ?? 0)

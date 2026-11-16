@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { hojeLocal } from '@/lib/utils'
 import { toast_success, toast_error } from '@/components/Toast'
 
 type Exemplar     = { id: string; key: string; tombo: string; volume: string; edicao: string; aquisicao: string; data_cadastro: string; isNew?: boolean }
@@ -37,7 +38,7 @@ export default function EditarAcervoPage() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando]     = useState(false)
   const [erros, setErros]           = useState<Record<string, string>>({})
-  const [removidos, setRemovidos]   = useState<string[]>([])
+  const [removidos, setRemovidos]   = useState<Exemplar[]>([])
 
   const [forma, setForma]           = useState<Forma>({
     titulo: '', autor: '', editora: '', cdd: '', descricao: '',
@@ -95,7 +96,7 @@ export default function EditarAcervoPage() {
   function addExemplar() {
     setExemplares(l => [...l, {
       id: '', key: crypto.randomUUID(), tombo: '', volume: '', edicao: '',
-      aquisicao: 'compra', data_cadastro: new Date().toISOString().split('T')[0], isNew: true,
+      aquisicao: 'compra', data_cadastro: hojeLocal(), isNew: true,
     }])
   }
 
@@ -103,9 +104,14 @@ export default function EditarAcervoPage() {
     if (ex.isNew) {
       setExemplares(l => l.filter(e => e.key !== ex.key))
     } else {
-      setRemovidos(r => [...r, ex.id])
+      setRemovidos(r => [...r, ex])
       setExemplares(l => l.filter(e => e.key !== ex.key))
     }
+  }
+
+  function desfazerRemocoes() {
+    setExemplares(l => [...l, ...removidos])
+    setRemovidos([])
   }
 
   function validar(): boolean {
@@ -148,7 +154,7 @@ export default function EditarAcervoPage() {
 
     // 2. Remover exemplares deletados
     if (removidos.length > 0) {
-      const { error } = await supabase.from('livros_exemplares').delete().in('id', removidos)
+      const { error } = await supabase.from('livros_exemplares').delete().in('id', removidos.map(r => r.id))
       if (error) {
         toast_error(`Erro ao remover exemplares: ${error.message}`)
       }
@@ -262,7 +268,7 @@ export default function EditarAcervoPage() {
         {removidos.length > 0 && (
           <div className="bg-amber-50 text-amber-800 text-xs rounded-lg px-3 py-2 mb-3">
             {removidos.length} exemplar{removidos.length !== 1 ? 'es' : ''} será{removidos.length !== 1 ? 'ão' : ''} removido{removidos.length !== 1 ? 's' : ''} ao salvar.
-            <button onClick={() => { setRemovidos([]); /* Reload needed */ }} className="ml-2 underline">Desfazer</button>
+            <button type="button" onClick={desfazerRemocoes} className="ml-2 underline">Desfazer</button>
           </div>
         )}
 
