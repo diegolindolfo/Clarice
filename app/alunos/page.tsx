@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { corAvatar, iniciais, sanitizeBusca } from '@/lib/utils'
 import Chip from '@/components/Chip'
+import ModalNovoAluno from '@/components/ModalNovoAluno'
 import PainelAluno from './PainelAluno'
 
 type Aluno = {
@@ -30,6 +31,7 @@ function AlunosContent() {
   const [carregando, setCarregando]         = useState(true)
   const [erro, setErro]                     = useState('')
   const [selecionado, setSelecionado]       = useState<Aluno | null>(null)
+  const [criandoAluno, setCriandoAluno]     = useState(false)
 
   const selecionadoRef = useRef(selecionado)
   useEffect(() => { selecionadoRef.current = selecionado }, [selecionado])
@@ -125,9 +127,18 @@ function AlunosContent() {
 
         {/* Lista */}
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-medium">Alunos</h1>
-            <span className="text-xs text-gray-500">{alunos.length} exibidos</span>
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <div>
+              <h1 className="text-xl font-medium">Alunos</h1>
+              <span className="text-xs text-gray-500">{alunos.length} exibidos</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCriandoAluno(true)}
+              className="nav-btn-primary text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+            >
+              + Novo aluno
+            </button>
           </div>
 
           <input
@@ -204,6 +215,17 @@ function AlunosContent() {
           )}
         </div>
       </div>
+
+      {criandoAluno && (
+        <ModalNovoAluno
+          onFechar={() => setCriandoAluno(false)}
+          onSalvo={novo => {
+            setCriandoAluno(false)
+            setSelecionado({ ...novo, ativo: true, em_atraso: false, foto_url: null })
+            carregar()
+          }}
+        />
+      )}
     </div>
   )
 }
